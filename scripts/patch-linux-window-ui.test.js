@@ -5305,7 +5305,11 @@ test("adds Linux launch actions through current setSecondInstanceArgsHandler bun
   assert.match(launchPatched, /e\.includes\(`--prompt-chat`\)/);
   assert.match(launchPatched, /e\.includes\(`--quick-chat`\)/);
   assert.match(launchPatched, /e\.includes\(`--new-chat`\)/);
-  assert.match(launchPatched, /process\.platform===`linux`&&codexLinuxStartLaunchActionSocket\(\);l\(e=>/);
+  assert.match(launchPatched, /e\.includes\(`--show`\)/);
+  assert.match(launchPatched, /codexLinuxShowPrimaryWindow=async\(\)=>/);
+  assert.match(launchPatched, /codexLinuxActivationQueue=Promise\.resolve\(\),codexLinuxEnqueueLaunchAction=e=>/);
+  assert.match(launchPatched, /codexLinuxEnqueueLaunchAction\(i\)\.then\(\(\)=>\{t\.end\?\.\(`ok\\n`\)\}\)/);
+  assert.match(launchPatched, /process\.platform===`linux`&&codexLinuxStartLaunchActionSocket\(\);l\(e=>\{codexLinuxEnqueueLaunchAction\(e\)/);
   assert.doesNotMatch(launchPatched, /l\(e=>\{z\.deepLinks\.queueProcessArgs\(e\)\|\|oe\(\)\}\)/);
   assert.match(
     prewarmPatched,
@@ -5347,8 +5351,11 @@ test("adds Linux launch actions when captured window identifiers contain dollar 
   assert.match(patched, /codexLinuxIsQuitInProgress=\(\)=>codexLinuxQuitInProgress===!0/);
   assert.match(patched, /codexLinuxGetSetting=e=>/);
   assert.match(patched, /codexLinuxHandleLaunchActionArgs=async e=>/);
-  assert.match(patched, /codexLinuxHandleLaunchActionArgs=async e=>\(typeof codexLinuxIsQuitInProgress===`function`&&codexLinuxIsQuitInProgress\(\)\)\?!0:/);
+  assert.match(patched, /codexLinuxHandleLaunchActionArgs=async e=>\{if\(typeof codexLinuxIsQuitInProgress===`function`&&codexLinuxIsQuitInProgress\(\)\)return!0;/);
   assert.match(patched, /codexLinuxHandleLaunchActionArgsFallback=\(e,t\)=>\{if\(typeof codexLinuxIsQuitInProgress===`function`&&codexLinuxIsQuitInProgress\(\)\)return;/);
+  assert.match(patched, /codexLinuxShowPrimaryWindow=async\(\)=>/);
+  assert.match(patched, /codexLinuxActivationQueue=Promise\.resolve\(\),codexLinuxEnqueueLaunchAction=e=>/);
+  assert.match(patched, /e\.includes\(`--show`\)/);
   assert.match(patched, /codexLinuxStartLaunchActionSocket=\(\)=>/);
   assert.match(patched, /codexLinuxDefaultLaunchActionSocket=\(\)=>/);
   assert.match(patched, /codexLinuxPrewarmHotkeyWindow=\(\)=>/);

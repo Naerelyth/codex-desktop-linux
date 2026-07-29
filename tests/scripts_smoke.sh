@@ -1536,7 +1536,7 @@ SCRIPT
     assert_file_not_exists "$capture_dir/AppDir/usr/lib/systemd/user/codex-update-manager.service"
     assert_file_not_exists "$capture_dir/AppDir/usr/share/polkit-1/actions/com.github.ilysenko.codex-desktop-linux.update.policy"
     assert_file_not_exists "$capture_dir/AppDir/opt/codex-desktop/update-builder"
-    assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Exec=AppRun %u"
+    assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Exec=AppRun --show %u"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Icon=codex-desktop"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "X-AppImage-Version=2026.03.24.120000+appimage"
@@ -5500,6 +5500,7 @@ launch_body = source.split("launch_electron() {", 1)[1].split("load_packaged_run
 runtime_body = source.split("trap cleanup_launcher EXIT", 1)[1].split("launch_electron", 1)[0]
 webview_probe_body = source.split("webview_port_is_open() {", 1)[1].split("wait_for_webview_server() {", 1)[0]
 wait_body = source.split("wait_for_webview_server() {", 1)[1].split("verify_webview_origin() {", 1)[0]
+socket_send_body = source.split("send_launch_action_to_socket() {", 1)[1].split("send_warm_start_launch_action() {", 1)[0]
 send_body = source.split("send_warm_start_launch_action() {", 1)[1].split("webview_origin_is_reachable() {", 1)[0]
 prelaunch_hooks_body = source.split("run_feature_prelaunch_hooks() {", 1)[1].split("bundled_plugin_version() {", 1)[0]
 launcher_hooks_body = source.split("run_feature_launcher_hooks() {", 1)[1].split("build_electron_launch_args() {", 1)[0]
@@ -5566,8 +5567,10 @@ if 'CODEX_ELECTRON_USER_DATA_DIR="$APP_STATE_DIR/electron-user-data"' not in mul
     raise SystemExit("multi-launch must force a per-instance Electron user-data dir")
 if 'send_warm_start_launch_action "${LAUNCHER_ARGS[@]}"' not in source:
     raise SystemExit("warm-start handoff must not receive launcher-only multi-launch flags")
-if "client.shutdown(socket.SHUT_WR)" not in send_body or "response = client.recv(32)" not in send_body:
-    raise SystemExit("warm-start IPC client must read the Electron socket acknowledgement")
+if 'send_launch_action_to_socket "$LAUNCH_ACTION_SOCKET" "$@"' not in send_body:
+    raise SystemExit("warm-start handoff must use the shared launch-action socket client")
+if "client.shutdown(socket.SHUT_WR)" not in socket_send_body or "response = client.recv(32)" not in socket_send_body:
+    raise SystemExit("launch-action IPC client must read the Electron socket acknowledgement")
 if 'launch_electron "${LAUNCHER_ARGS[@]}"' not in source:
     raise SystemExit("Electron launch must receive sanitized launcher args")
 if 'FEATURE_LAUNCHER_HOOK_DIR="$SCRIPT_DIR/.codex-linux/launcher.d"' not in source:
@@ -5607,9 +5610,14 @@ if "renderer_url_override_is_active" in warm_recovery_body:
     raise SystemExit("a new-launch renderer override must not preserve a stale packaged-origin Electron")
 if not re.search(r'trap cleanup_launcher EXIT.*?recover_unhealthy_running_app.*?prepare_launch_state_under_lock.*?send_warm_start_launch_action', source, re.S):
     raise SystemExit("launcher must recover an unhealthy packaged origin before warm-start IPC")
+existing_activation = 'if [ "$MULTI_LAUNCH_ACTIVE" -eq 0 ] && send_launch_action_to_socket "$LAUNCH_ACTION_SOCKET" "${LAUNCHER_ARGS[@]}"; then'
+if existing_activation not in source:
+    raise SystemExit("desktop activation must use the stable launch-action socket outside multi-launch mode")
+if source.index(existing_activation) > source.index('log_phase "initial_launch_state_refresh_start"'):
+    raise SystemExit("desktop activation must try the stable launch-action socket before state reconciliation can remove it")
 if launch_body.count("unset ELECTRON_RUN_AS_NODE") != 2:
     raise SystemExit("launch_electron must clear ELECTRON_RUN_AS_NODE before both Electron launch paths")
-if 'pid_matches_executable "$RUNNING_APP_PID" "$SCRIPT_DIR/electron"' not in launch_body:
+if 'pid_matches_running_app "$RUNNING_APP_PID"' not in launch_body:
     raise SystemExit("launch_electron must not overwrite APP_PID_FILE for second-instance handoff")
 if 'echo "$ELECTRON_PID" > "$APP_PID_FILE"' not in launch_body:
     raise SystemExit("launch_electron must still write APP_PID_FILE for normal cold launches")
@@ -5795,8 +5803,14 @@ if 'clear_stale_pid_file' not in reconcile_body:
 if 'if [ -z "$webview_pid" ] || { ! pid_is_webview_server "$webview_pid" && ! pid_is_stale_webview_server "$webview_pid"; }; then' not in reconcile_body:
     raise SystemExit("reconcile_runtime_state must clear stale launcher webview ownership markers without touching valid orphaned servers")
 discover_body = source.split("discover_running_app_pid() {", 1)[1].split("running_app_is_active() {", 1)[0]
-if 'pid_in_same_launch_instance "$pid"' not in discover_body:
-    raise SystemExit("discover_running_app_pid must filter by launch instance so default and side-by-side apps never adopt each other")
+if 'pid_matches_running_app "$pid"' not in discover_body:
+    raise SystemExit("discover_running_app_pid must use the shared resident-process identity matcher")
+running_match_body = source.split("pid_matches_running_app() {", 1)[1].split("find_running_app_pid() {", 1)[0]
+if 'pid_matches_app_identity "$pid"' not in running_match_body or 'pid_in_same_launch_instance "$pid"' not in running_match_body:
+    raise SystemExit("resident-process matching must keep app and launch-instance isolation for every match route")
+appimage_match_body = source.split("pid_matches_appimage_instance() {", 1)[1].split("pid_matches_running_app() {", 1)[0]
+if 'APPIMAGE' not in appimage_match_body:
+    raise SystemExit("AppImage process matching must require a stable image identity")
 instance_match_body = source.split("pid_in_same_launch_instance() {", 1)[1].split("discover_running_app_pid() {", 1)[0]
 if 'CODEX_LINUX_INSTANCE_ID=$CODEX_LINUX_INSTANCE_ID' not in instance_match_body or 'CODEX_LINUX_MULTI_LAUNCH=1' not in instance_match_body:
     raise SystemExit("pid_in_same_launch_instance must match instance identity from the process environment")
@@ -6402,6 +6416,7 @@ EOF
     assert_contains "$REPO_DIR/scripts/build-rpm.sh" "PACKAGED_RUNTIME_SOURCE"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "BAMF_DESKTOP_FILE_HINT"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "/usr/bin/codex-desktop %u"
+    assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "StartupNotify=true"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "StartupWMClass=codex-desktop"
@@ -6413,6 +6428,7 @@ EOF
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "codex-update-manager install-ready"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "BAMF_DESKTOP_FILE_HINT=@HOME@/.local/share/applications/codex-desktop.desktop"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "@HOME@/.local/bin/codex-desktop %U"
+    assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "StartupNotify=true"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "Actions=new-window;"
