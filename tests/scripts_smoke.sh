@@ -1544,6 +1544,7 @@ SCRIPT
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "X-AppImage-Version=2026.03.24.120000+appimage"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Actions=new-window;"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "[Desktop Action new-window]"
+    assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Exec=env CHROME_DESKTOP=codex-desktop.desktop AppRun --new-window"
     assert_not_contains "$capture_dir/AppDir/codex-desktop.desktop" "codex-update-manager"
     assert_contains "$capture_dir/AppDir/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh" 'CHROME_DESKTOP="codex-desktop.desktop"'
     assert_not_contains "$capture_dir/AppDir/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh" "/usr/share/applications"
@@ -9831,6 +9832,14 @@ async function boot(settings = {}, env = { CODEX_DESKTOP_LAUNCH_ACTION_SOCKET: "
   assert(state.focusCalls.length === 1 && state.focusCalls[0] === "primary", "--new-chat should focus the warm primary window");
   assert(state.navigateCalls.length === 1 && state.navigateCalls[0].path === "/", "--new-chat should navigate the warm primary window to /");
   assert(state.messages.length === 0, "--new-chat should not send a quick-chat message");
+
+  resetCalls();
+  state.primaryWindow = state.primary;
+  const newWindowSocket = await runSocketArgs(["--new-window"]);
+  assert(newWindowSocket.outputs[0] === "ok\n", "warm-start socket should acknowledge --new-window");
+  assert(state.createFreshLocalWindowCalls.length === 1 && state.createFreshLocalWindowCalls[0] === "/", "--new-window should create a fresh main window");
+  assert(state.focusCalls.length === 1 && state.focusCalls[0] === "created", "--new-window should focus the fresh window");
+  assert(state.navigateCalls.length === 0, "--new-window should not reuse or navigate the warm primary window");
 
   resetCalls();
   state.primaryWindow = state.primary;

@@ -5916,8 +5916,10 @@ test("adds Linux launch actions through current setSecondInstanceArgsHandler bun
   assert.match(launchPatched, /e\.includes\(`--prompt-chat`\)/);
   assert.match(launchPatched, /e\.includes\(`--quick-chat`\)/);
   assert.match(launchPatched, /e\.includes\(`--new-chat`\)/);
+  assert.match(launchPatched, /e\.includes\(`--new-window`\)/);
   assert.match(launchPatched, /e\.includes\(`--show`\)/);
   assert.match(launchPatched, /codexLinuxShowPrimaryWindow=async\(\)=>/);
+  assert.match(launchPatched, /codexLinuxOpenNewWindow=async\(\)=>/);
   assert.match(launchPatched, /codexLinuxActivationQueue=Promise\.resolve\(\),codexLinuxEnqueueLaunchAction=e=>/);
   assert.match(launchPatched, /codexLinuxEnqueueLaunchAction\(i\)\.then\(\(\)=>\{t\.end\?\.\(`ok\\n`\)\}\)/);
   assert.match(launchPatched, /process\.platform===`linux`&&codexLinuxStartLaunchActionSocket\(\);l\(e=>\{codexLinuxEnqueueLaunchAction\(e\)/);
