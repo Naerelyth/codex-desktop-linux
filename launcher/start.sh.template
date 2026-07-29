@@ -345,6 +345,7 @@ Launches the $CODEX_LINUX_APP_DISPLAY_NAME app.
 
 Options:
   -h, --help                  Show this help message and exit
+  --show                      Restore or create and focus the main window
   --new-instance              Start a separate app instance on the first free port in the multi-launch range
   --new-chat                  Open the main window on a new chat
   --quick-chat                Open a projectless quick chat
@@ -2344,12 +2345,47 @@ pid_matches_executable() {
     ! pid_is_electron_helper "$pid"
 }
 
+pid_matches_appimage_instance() {
+    local pid="$1"
+    local current_appimage="${APPIMAGE:-}"
+    local running_appimage
+    local actual
+
+    # Every AppImage launch gets a fresh APPDIR mount, so its electron path is
+    # deliberately different from the resident process. APPIMAGE, unlike
+    # APPDIR, names the stable image file selected by the desktop entry.
+    [ -n "$current_appimage" ] || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -d "/proc/$pid" ] || return 1
+    running_appimage="$(pid_environ_value "$pid" APPIMAGE 2>/dev/null || true)"
+    [ "$running_appimage" = "$current_appimage" ] || return 1
+    actual="$(pid_cmdline_arg0_path "$pid")"
+    case "${actual##*/}" in
+        electron|electron\ *) ;;
+        *) return 1 ;;
+    esac
+    pid_is_current_user "$pid" || return 1
+    ! pid_is_electron_helper "$pid" || return 1
+}
+
+pid_matches_running_app() {
+    local pid="$1"
+
+    # Keep the normal fixed-path case isolated from --new-instance launches
+    # too. AppImage matching adds a second route for a fresh APPDIR mount; it
+    # must not weaken the app or launch-instance identity boundary.
+    (pid_matches_executable "$pid" "$SCRIPT_DIR/electron" ||
+        pid_matches_appimage_instance "$pid") &&
+        pid_matches_app_identity "$pid" &&
+        pid_in_same_launch_instance "$pid"
+}
+
 find_running_app_pid() {
     local pid
 
     if [ -f "$APP_PID_FILE" ]; then
         pid="$(cat "$APP_PID_FILE" 2>/dev/null || true)"
-        if pid_matches_executable "$pid" "$SCRIPT_DIR/electron"; then
+        if pid_matches_running_app "$pid"; then
             echo "$pid"
             return 0
         fi
@@ -2420,7 +2456,7 @@ discover_running_app_pid() {
         [ -r "$proc_cmdline" ] || continue
         pid="${proc_cmdline#/proc/}"
         pid="${pid%/cmdline}"
-        if pid_matches_executable "$pid" "$SCRIPT_DIR/electron" && pid_in_same_launch_instance "$pid"; then
+        if pid_matches_running_app "$pid"; then
             echo "$pid"
             return 0
         fi
@@ -2505,7 +2541,7 @@ set_detected_running_app() {
 }
 
 running_app_is_active() {
-    [ -n "${RUNNING_APP_PID:-}" ] && pid_matches_executable "$RUNNING_APP_PID" "$SCRIPT_DIR/electron"
+    [ -n "${RUNNING_APP_PID:-}" ] && pid_matches_running_app "$RUNNING_APP_PID"
 }
 
 using_second_instance_handoff() {
@@ -2713,11 +2749,13 @@ recover_unhealthy_running_app() {
     rm -f "$APP_PID_FILE" "$WEBVIEW_PID_FILE" "$LAUNCH_ACTION_SOCKET"
 }
 
-send_warm_start_launch_action() {
-    [ "$WARM_START" -eq 1 ] || return 1
-    [ -S "$LAUNCH_ACTION_SOCKET" ] || return 1
+send_launch_action_to_socket() {
+    local socket_path="$1"
+    shift
 
-    python3 - "$LAUNCH_ACTION_SOCKET" "$@" <<'PY'
+    [ -S "$socket_path" ] || return 1
+
+    python3 - "$socket_path" "$@" <<'PY'
 import json
 import socket
 import sys
@@ -2738,6 +2776,11 @@ try:
 finally:
     client.close()
 PY
+}
+
+send_warm_start_launch_action() {
+    [ "$WARM_START" -eq 1 ] || return 1
+    send_launch_action_to_socket "$LAUNCH_ACTION_SOCKET" "$@"
 }
 
 webview_origin_is_reachable() {
@@ -3138,7 +3181,7 @@ clear_stale_pid_file() {
 
     local pid=""
     pid="$(cat "$APP_PID_FILE" 2>/dev/null || true)"
-    if [ -z "$pid" ] || ! pid_matches_executable "$pid" "$SCRIPT_DIR/electron"; then
+    if [ -z "$pid" ] || ! pid_matches_running_app "$pid"; then
         rm -f "$APP_PID_FILE"
     fi
 }
@@ -4411,7 +4454,7 @@ launch_electron() {
         exec "$SCRIPT_DIR/electron" "${ELECTRON_LAUNCH_ARGS[@]}" "${ELECTRON_ARGS[@]}"
     ) &
     ELECTRON_PID=$!
-    if [ -n "${RUNNING_APP_PID:-}" ] && pid_matches_executable "$RUNNING_APP_PID" "$SCRIPT_DIR/electron"; then
+    if [ -n "${RUNNING_APP_PID:-}" ] && pid_matches_running_app "$RUNNING_APP_PID"; then
         echo "Preserving ChatGPT Desktop pid=$RUNNING_APP_PID liveness marker for second-instance handoff"
     else
         echo "$ELECTRON_PID" > "$APP_PID_FILE"
@@ -4444,6 +4487,18 @@ else
     echo "Packaged webview renderer URL: $WEBVIEW_RENDERER_URL"
 fi
 register_url_scheme_handlers
+
+# The launch-action socket is the stable activation endpoint for the running
+# app. Try it before comparing Electron paths: AppImage and Gear Lever can
+# create a fresh APPDIR for every click, while this XDG socket remains owned by
+# the resident process. A failed or stale socket simply falls through to the
+# existing identity-checked warm/cold launch flow.
+if [ "$MULTI_LAUNCH_ACTIVE" -eq 0 ] && send_launch_action_to_socket "$LAUNCH_ACTION_SOCKET" "${LAUNCHER_ARGS[@]}"; then
+    echo "Sent launch args over existing launch-action IPC"
+    log_phase "existing_launch_action_ipc_sent"
+    exit 0
+fi
+
 log_phase "initial_launch_state_refresh_start"
 refresh_launch_state
 log_phase "initial_launch_state_refreshed"

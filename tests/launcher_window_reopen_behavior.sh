@@ -53,8 +53,10 @@ fi
 
 TMP_DIR="$(mktemp -d)"
 APP_DIR="$TMP_DIR/app"
+SECOND_APP_DIR="$TMP_DIR/app-next"
 HOME_DIR="$TMP_DIR/home"
 RUNTIME_DIR="$TMP_DIR/runtime"
+APPIMAGE_PATH="$TMP_DIR/Codex.AppImage"
 STATE_DIR="$HOME_DIR/.local/state/codex-desktop"
 SOCKET_PATH="$RUNTIME_DIR/codex-desktop/launch-action.sock"
 HANDOFF_RESULT="$TMP_DIR/handoff.json"
@@ -81,7 +83,7 @@ count_test_main_processes() {
         pid="${cmdline#/proc/}"
         pid="${pid%/cmdline}"
         IFS= read -r -d '' arg0 < "$cmdline" 2>/dev/null || true
-        if [ "${arg0:-}" = "$APP_DIR/electron" ]; then
+        if [ "${arg0:-}" = "$APP_DIR/electron" ] || [ "${arg0:-}" = "$SECOND_APP_DIR/electron" ]; then
             count=$((count + 1))
         fi
         arg0=""
@@ -180,7 +182,7 @@ cleanup() {
     set +e
     webview_pid="$(cat "$STATE_DIR/webview.pid" 2>/dev/null || true)"
     stop_owned_process_bounded "$LAUNCHER_PID" argv "$APP_DIR/start.sh" || cleanup_failed=1
-    stop_owned_process_bounded "$SECOND_LAUNCHER_PID" argv "$APP_DIR/start.sh" || cleanup_failed=1
+    stop_owned_process_bounded "$SECOND_LAUNCHER_PID" argv "$SECOND_APP_DIR/start.sh" || cleanup_failed=1
     stop_owned_process_bounded "$SOCKET_PID" argv "$SOCKET_PATH" || cleanup_failed=1
     stop_owned_process_bounded "$webview_pid" argv "$APP_DIR/.codex-linux/webview-server.py" || cleanup_failed=1
     stop_owned_process_bounded "$DECOY_PID" arg0 "$TMP_DIR/decoy-electron" || cleanup_failed=1
@@ -189,10 +191,10 @@ cleanup() {
         pid="${cmdline#/proc/}"
         pid="${pid%/cmdline}"
         IFS= read -r -d '' arg0 < "$cmdline" 2>/dev/null || true
-        if [ "${arg0:-}" = "$APP_DIR/electron" ]; then
+        if [ "${arg0:-}" = "$APP_DIR/electron" ] || [ "${arg0:-}" = "$SECOND_APP_DIR/electron" ]; then
             IFS= read -r -d '' revalidated_arg0 < "$cmdline" 2>/dev/null || true
-            if [ "${revalidated_arg0:-}" = "$APP_DIR/electron" ]; then
-                stop_owned_process_bounded "$pid" arg0 "$APP_DIR/electron" || cleanup_failed=1
+            if [ "${revalidated_arg0:-}" = "$APP_DIR/electron" ] || [ "${revalidated_arg0:-}" = "$SECOND_APP_DIR/electron" ]; then
+                stop_owned_process_bounded "$pid" arg0 "$revalidated_arg0" || cleanup_failed=1
             fi
         fi
         arg0=""
@@ -354,14 +356,19 @@ int main() {
 }
 CPP
 cp "$APP_DIR/electron" "$TMP_DIR/decoy-electron"
-"$TMP_DIR/decoy-electron" --app-id=codex-desktop &
+# The decoy must never inherit the host AppImage identity: the test verifies
+# that only the resident process from this AppImage can cross the fresh mount.
+env -u APPIMAGE "$TMP_DIR/decoy-electron" --app-id=codex-desktop &
 DECOY_PID=$!
+touch "$APPIMAGE_PATH"
+cp -a "$APP_DIR" "$SECOND_APP_DIR"
 
 COMMON_ENV=(
     env -i
     "PATH=$PATH"
     "HOME=$HOME_DIR"
     "XDG_RUNTIME_DIR=$RUNTIME_DIR"
+    "APPIMAGE=$APPIMAGE_PATH"
     "CODEX_CLI_PATH=$(command -v true)"
     "CODEX_WEBVIEW_PORT=$PORT"
 )
@@ -402,7 +409,7 @@ SOCKET_PID=$!
 wait_for "controlled handoff socket" test -S "$SOCKET_PATH"
 
 if [ "${CODEX_TEST_FORCE_RESIDENT_REPLACEMENT:-0}" = "1" ]; then
-    "${COMMON_ENV[@]}" "$APP_DIR/start.sh" --new-chat > "$SECOND_LOG" 2>&1 &
+    "${COMMON_ENV[@]}" "$SECOND_APP_DIR/start.sh" --new-chat > "$SECOND_LOG" 2>&1 &
     SECOND_LAUNCHER_PID=$!
     if [ "${CODEX_TEST_MUTATION_CONTROL_ONLY:-0}" = "1" ]; then
         set +e
@@ -430,7 +437,7 @@ if [ "${CODEX_TEST_FORCE_RESIDENT_REPLACEMENT:-0}" = "1" ]; then
 fi
 
 set +e
-timeout 8s "${COMMON_ENV[@]}" "$APP_DIR/start.sh" --new-chat > "$SECOND_LOG" 2>&1
+timeout 8s "${COMMON_ENV[@]}" "$SECOND_APP_DIR/start.sh" > "$SECOND_LOG" 2>&1
 rc=$?
 set -e
 if [ "$rc" -ne 0 ]; then
@@ -452,13 +459,15 @@ kill -0 "$FIRST_ELECTRON_PID" 2>/dev/null \
     || fail "runtime marker no longer identifies the healthy resident"
 [ "$HANDOFF_STATUS" = "acknowledged" ] \
     || fail "controlled resident did not acknowledge the reopen handoff"
+grep -Fq "Sent launch args over existing launch-action IPC" "$SECOND_LOG" \
+    || fail "reopen did not use the resident launch-action socket before AppImage process discovery"
 python3 - "$HANDOFF_RESULT" <<'PY' \
-    || fail "reopen handoff did not preserve the --new-chat argument"
+    || fail "reopen handoff did not normalize a desktop activation to --show"
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as result:
-    assert json.load(result)["argv"] == ["--new-chat"]
+    assert json.load(result)["argv"] == ["--show"]
 PY
 [ "$(count_test_main_processes)" -eq 1 ] \
     || fail "reopen handoff left more than one controlled Electron process"
