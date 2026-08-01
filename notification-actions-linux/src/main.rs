@@ -1,10 +1,13 @@
-use std::{collections::HashMap, io::Write};
+use std::{collections::HashMap, io::Write, path::Path};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use zbus::{zvariant::OwnedValue, Connection, Proxy};
+use zbus::{
+    zvariant::{OwnedValue, Str},
+    Connection, Proxy,
+};
 
 const NOTIFICATIONS_SERVICE: &str = "org.freedesktop.Notifications";
 const NOTIFICATIONS_PATH: &str = "/org/freedesktop/Notifications";
@@ -106,7 +109,13 @@ async fn run() -> Result<()> {
         .await
         .context("failed to subscribe to notification closure")?;
     let action_pairs = notification_actions(&request.actions);
-    let hints: HashMap<String, OwnedValue> = HashMap::new();
+    let mut hints: HashMap<String, OwnedValue> = HashMap::new();
+    if let Some(desktop_entry) = launched_desktop_entry_id() {
+        hints.insert(
+            "desktop-entry".to_owned(),
+            OwnedValue::from(Str::from(desktop_entry)),
+        );
+    }
     let notification_id: u32 = proxy
         .call(
             "Notify",
@@ -197,6 +206,19 @@ fn validate_request(request: &ShowRequest) -> Result<()> {
     Ok(())
 }
 
+fn launched_desktop_entry_id() -> Option<String> {
+    let desktop_file = std::env::var_os("GIO_LAUNCHED_DESKTOP_FILE")?;
+    desktop_entry_id(Path::new(&desktop_file))
+}
+
+fn desktop_entry_id(desktop_file: &Path) -> Option<String> {
+    desktop_file
+        .file_name()?
+        .to_str()?
+        .strip_suffix(".desktop")
+        .map(str::to_owned)
+}
+
 fn notification_actions(actions: &[String]) -> Vec<String> {
     let mut pairs = Vec::with_capacity(2 + actions.len() * 2);
     pairs.push("default".to_owned());
@@ -253,6 +275,21 @@ mod tests {
         assert_eq!(action_index("action-2", 2), None);
         assert_eq!(action_index("default", 2), None);
         assert_eq!(action_index("action-nope", 2), None);
+    }
+
+    #[test]
+    fn derives_desktop_entry_id_from_desktop_file_path() {
+        assert_eq!(
+            desktop_entry_id(Path::new(
+                "/home/user/.local/share/applications/chatgpt.desktop"
+            )),
+            Some("chatgpt".to_owned())
+        );
+        assert_eq!(
+            desktop_entry_id(Path::new("/usr/share/applications/codex-desktop.desktop")),
+            Some("codex-desktop".to_owned())
+        );
+        assert_eq!(desktop_entry_id(Path::new("/tmp/not-a-desktop-file")), None);
     }
 
     #[test]
