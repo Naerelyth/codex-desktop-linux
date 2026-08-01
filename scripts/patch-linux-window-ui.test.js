@@ -5766,7 +5766,11 @@ test("adds Linux launch actions through current setSecondInstanceArgsHandler bun
   assert.match(launchPatched, /codexLinuxHasDeepLink\(e\)&&z\.deepLinks\.queueProcessArgs\(e\)/);
   assert.match(launchPatched, /e\.includes\(`--prompt-chat`\)/);
   assert.match(launchPatched, /e\.includes\(`--quick-chat`\)/);
+  assert.match(launchPatched, /e\.includes\(`--new-window`\)/);
   assert.match(launchPatched, /e\.includes\(`--new-chat`\)/);
+  assert.match(launchPatched, /codexLinuxOpenNewWindow=async\(\)=>/);
+  assert.match(launchPatched, /codexLinuxHandleNewWindowLaunchActionArgs=async e=>/);
+  assert.doesNotThrow(() => new Function(launchPatched));
   assert.match(launchPatched, /process\.platform===`linux`&&codexLinuxStartLaunchActionSocket\(\);l\(e=>/);
   assert.doesNotMatch(launchPatched, /l\(e=>\{z\.deepLinks\.queueProcessArgs\(e\)\|\|oe\(\)\}\)/);
   assert.match(
