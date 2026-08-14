@@ -1503,7 +1503,17 @@ function main() {
     return;
   }
   if (command === "--patch-descriptor-count") {
-    process.stdout.write(`${loadLinuxFeaturePatchDescriptors().length}\n`);
+    let coreCount = 0;
+    try {
+      const { discoverCorePatchDescriptors } = require("../patches/engine.js");
+      coreCount = discoverCorePatchDescriptors().length;
+    } catch (error) {
+      if (error.code !== "MODULE_NOT_FOUND") {
+        throw error;
+      }
+    }
+    const descriptorCount = coreCount + loadLinuxFeaturePatchDescriptors().length;
+    process.stdout.write(`${descriptorCount}\n`);
     return;
   }
   if (command === "--features-json") {

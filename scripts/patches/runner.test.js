@@ -19,12 +19,15 @@ const {
 
 const emptyConfig = path.join(__dirname, "..", "..", "linux-features", "features.example.json");
 
-test("official baseline has no core patches", () => {
-  assert.deepEqual(corePatchDescriptors(), []);
-  assert.deepEqual(allPatchPolicies({ featuresConfigPath: emptyConfig }), []);
+test("default core registry contains the required new-window launch patch", () => {
+  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), ["linux-new-window-launch-action"]);
+  assert.deepEqual(
+    allPatchPolicies({ featuresConfigPath: emptyConfig }).map((patch) => patch.name),
+    ["linux-new-window-launch-action"],
+  );
   assert.deepEqual(
     requiredPatchNamesForProfile("upstream-build", { featuresConfigPath: emptyConfig }),
-    [],
+    ["linux-new-window-launch-action"],
   );
 });
 
@@ -53,6 +56,7 @@ test("default empty registry leaves official extracted files byte-identical", ()
     fs.writeFileSync(webview, "official-webview\n");
     const report = createPatchReport();
     patchExtractedApp(root, {
+      corePatchRoot: path.join(root, "empty-core"),
       report,
       featuresConfigPath: emptyConfig,
     });
@@ -70,8 +74,11 @@ test("missing main bundle records enabled feature drift", (t) => {
   const config = path.join(root, "features.json");
   fs.writeFileSync(config, '{"enabled":["frameless-titlebar"]}\n');
   const report = createPatchReport();
-
-  patchExtractedApp(root, { report, featuresConfigPath: config });
+  patchExtractedApp(root, {
+    corePatchRoot: path.join(root, "empty-core"),
+    report,
+    featuresConfigPath: config,
+  });
 
   const [entry] = report.patches;
   assert.equal(entry.name, "feature:frameless-titlebar:main-process");
