@@ -12,7 +12,7 @@ APPRUN_TEMPLATE="$REPO_DIR/packaging/appimage/AppRun"
 DESKTOP_TEMPLATE="$REPO_DIR/packaging/appimage/codex-desktop.desktop"
 APPIMAGE_RUNTIME_TEMPLATE="$REPO_DIR/packaging/appimage/codex-appimage-runtime.sh"
 PACKAGE_NAME="${PACKAGE_NAME:-codex-desktop}"
-PACKAGE_DISPLAY_NAME="${PACKAGE_DISPLAY_NAME:-ChatGPT Community}"
+PACKAGE_DISPLAY_NAME="${PACKAGE_DISPLAY_NAME:-ChatGPT}"
 PACKAGE_COMMENT="${PACKAGE_COMMENT:-Community Linux distribution based on OpenAI ChatGPT}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d.%H%M%S)}"
 ICON_SOURCE="$(resolve_package_icon_source)"
@@ -74,6 +74,8 @@ prepare_appdir() {
         "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
     cp -aT "$APP_DIR" "$APPDIR/opt/$PACKAGE_NAME"
+		# 剔除自带的 codex 二进制文件，减小 AppImage 体积并使用系统 codex
+		rm -f "$APPDIR/opt/$PACKAGE_NAME/resources/codex"
     mkdir -p "$APPDIR/opt/$PACKAGE_NAME/.codex-linux"
 
     render_template "$APPRUN_TEMPLATE" "$APPDIR/AppRun"
