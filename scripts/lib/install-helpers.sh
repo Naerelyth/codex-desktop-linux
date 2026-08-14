@@ -84,6 +84,7 @@ HELP
 }
 
 parse_args() {
+    local positional_deb_seen=0
     while [ $# -gt 0 ]; do
         case "$1" in
             --fresh)
@@ -105,13 +106,14 @@ parse_args() {
                 error "Unknown option: $1 (see --help)"
                 ;;
             *)
-                [ -z "$PROVIDED_UPSTREAM_DEB_PATH" ] || error "Only one upstream .deb path may be provided"
+                [ "$positional_deb_seen" -eq 0 ] || error "Only one upstream .deb path may be provided"
                 case "$1" in
                     *.dmg|*.DMG) error "macOS DMG inputs are no longer supported; provide the official Linux chatgpt_*.deb" ;;
                     *.deb) ;;
                     *) error "Upstream input must be an official chatgpt_*.deb package: $1" ;;
                 esac
                 PROVIDED_UPSTREAM_DEB_PATH="$1"
+                positional_deb_seen=1
                 ;;
         esac
         shift
@@ -133,6 +135,14 @@ validate_app_identity() {
             error "$retired_name is no longer supported; use UPSTREAM_DEB or signed stable APT metadata"
         fi
     done
+
+    if [ -n "$PROVIDED_UPSTREAM_DEB_PATH" ]; then
+        case "$PROVIDED_UPSTREAM_DEB_PATH" in
+            *.dmg|*.DMG) error "macOS DMG inputs are no longer supported; provide the official Linux chatgpt_*.deb" ;;
+            *.deb) ;;
+            *) error "Upstream input must be an official chatgpt_*.deb package: $PROVIDED_UPSTREAM_DEB_PATH" ;;
+        esac
+    fi
 }
 
 prepare_install() {
