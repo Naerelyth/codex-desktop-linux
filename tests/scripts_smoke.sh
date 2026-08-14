@@ -23,6 +23,16 @@ bash -n scripts/lib/*.sh scripts/build-deb.sh scripts/build-rpm.sh scripts/build
 
 assert_contains packaging/linux/codex-desktop.desktop '^Name=ChatGPT Community$'
 assert_contains packaging/linux/codex-desktop.desktop '^Comment=Community Linux distribution based on OpenAI ChatGPT$'
+assert_contains packaging/appimage/codex-desktop.desktop '^StartupNotify=true$'
+assert_contains packaging/appimage/codex-desktop.desktop '^Exec=env CHROME_DESKTOP=codex-desktop.desktop AppRun --new-window$'
+if awk '
+    /^\[Desktop Action new-window\]$/ { in_action = 1; next }
+    /^\[/ { in_action = 0 }
+    in_action && /^Icon=/ { found = 1 }
+    END { exit found ? 0 : 1 }
+' packaging/appimage/codex-desktop.desktop; then
+    fail "packaging/appimage/codex-desktop.desktop must not define an action Icon"
+fi
 assert_contains install.sh 'CODEX_APP_DISPLAY_NAME:-ChatGPT Community'
 assert_contains install.sh 'cp .*ICON_SOURCE.*CODEX_APP_ID'
 assert_contains install.sh 'cp .*ICON_SOURCE.*resources/icon-chatgpt.png'
@@ -85,9 +95,8 @@ if (report.upstreamAppAsar.sha256 !== "upstream-sha") throw new Error("bad upstr
 if (report.outputAppAsar.sha256 !== "output-sha") throw new Error("bad output hash");
 NODE
 
-if find scripts/patches/core -name patch.js -print -quit | grep -q .; then
-    fail "official baseline core registry must remain empty"
-fi
+assert_file scripts/patches/core/all-linux/main-process/launch-actions/patch.js
+assert_contains scripts/patches/core/all-linux/main-process/launch-actions/patch.js 'linux-new-window-launch-action'
 
 node - <<'NODE'
 const fs = require("node:fs");

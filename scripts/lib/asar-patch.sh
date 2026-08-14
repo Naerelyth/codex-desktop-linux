@@ -1,6 +1,6 @@
 #!/bin/bash
-# Apply enabled feature descriptors to the official Linux app.asar.
-# A clean build deliberately never extracts or repacks app.asar.
+# Apply core and enabled feature descriptors to the official Linux app.asar.
+# A descriptor-free build deliberately never extracts or repacks app.asar.
 # Sourced by install.sh. Do not run directly.
 # shellcheck shell=bash
 
@@ -13,7 +13,7 @@ const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const counts = {};
 for (const patch of report.patches ?? []) counts[patch.status] = (counts[patch.status] ?? 0) + 1;
 const summary = Object.entries(counts).map(([key, value]) => `${key}=${value}`).join(", ") || "none";
-console.error(`[INFO] feature patch summary: ${summary}`);
+console.error(`[INFO] ASAR patch summary: ${summary}`);
 NODE
 }
 
@@ -73,7 +73,7 @@ patch_asar() {
     [ -f "$app_asar" ] || error "app.asar not found in $resources_dir"
     descriptor_count="$(node "$SCRIPT_DIR/scripts/lib/linux-features.js" --patch-descriptor-count)"
     if [ "$descriptor_count" -eq 0 ]; then
-        info "No ASAR feature descriptors enabled; preserving official app.asar byte-for-byte"
+        info "No ASAR patch descriptors enabled; preserving official app.asar byte-for-byte"
         write_empty_feature_patch_report "$patch_report_json" "$app_asar"
         CODEX_PATCH_REPORT_RESOLVED="$patch_report_json"
         return 0

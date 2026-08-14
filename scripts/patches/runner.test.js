@@ -19,10 +19,16 @@ const {
 
 const emptyConfig = path.join(__dirname, "..", "..", "linux-features", "features.example.json");
 
-test("official baseline has no core descriptors or required patch policies", () => {
-  assert.deepEqual(corePatchDescriptors(), []);
-  assert.deepEqual(allPatchPolicies({ featuresConfigPath: emptyConfig }), []);
-  assert.deepEqual(requiredPatchNamesForProfile("upstream-build", { featuresConfigPath: emptyConfig }), []);
+test("default core registry contains the required new-window launch patch", () => {
+  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), ["linux-new-window-launch-action"]);
+  assert.deepEqual(
+    allPatchPolicies({ featuresConfigPath: emptyConfig }).map((patch) => patch.name),
+    ["linux-new-window-launch-action"],
+  );
+  assert.deepEqual(
+    requiredPatchNamesForProfile("upstream-build", { featuresConfigPath: emptyConfig }),
+    ["linux-new-window-launch-action"],
+  );
 });
 
 test("runner context exposes enabled feature IDs", () => {
@@ -49,7 +55,11 @@ test("empty feature set leaves official extracted files byte-identical", () => {
     fs.writeFileSync(main, "official-main\n");
     fs.writeFileSync(webview, "official-webview\n");
     const report = createPatchReport();
-    patchExtractedApp(root, { report, featuresConfigPath: emptyConfig });
+    patchExtractedApp(root, {
+      corePatchRoot: path.join(root, "empty-core"),
+      report,
+      featuresConfigPath: emptyConfig,
+    });
     assert.equal(fs.readFileSync(main, "utf8"), "official-main\n");
     assert.equal(fs.readFileSync(webview, "utf8"), "official-webview\n");
     assert.deepEqual(report.patches, []);
@@ -64,8 +74,11 @@ test("missing main bundle records enabled feature drift", (t) => {
   const config = path.join(root, "features.json");
   fs.writeFileSync(config, '{"enabled":["frameless-titlebar"]}\n');
   const report = createPatchReport();
-
-  patchExtractedApp(root, { report, featuresConfigPath: config });
+  patchExtractedApp(root, {
+    corePatchRoot: path.join(root, "empty-core"),
+    report,
+    featuresConfigPath: config,
+  });
 
   const [entry] = report.patches;
   assert.equal(entry.name, "feature:frameless-titlebar:main-process");
