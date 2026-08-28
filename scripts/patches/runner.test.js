@@ -19,15 +19,19 @@ const {
 
 const emptyConfig = path.join(__dirname, "..", "..", "linux-features", "features.example.json");
 
-test("default core registry contains the required new-window launch patch", () => {
-  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), ["linux-new-window-launch-action"]);
+test("default core registry contains the required Linux patches", () => {
+  const requiredCorePatches = [
+    "linux-new-window-launch-action",
+    "linux-disable-unity-notification-badge",
+  ];
+  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), requiredCorePatches);
   assert.deepEqual(
     allPatchPolicies({ featuresConfigPath: emptyConfig }).map((patch) => patch.name),
-    ["linux-new-window-launch-action"],
+    requiredCorePatches,
   );
   assert.deepEqual(
     requiredPatchNamesForProfile("upstream-build", { featuresConfigPath: emptyConfig }),
-    ["linux-new-window-launch-action"],
+    requiredCorePatches,
   );
 });
 
