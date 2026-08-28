@@ -22,6 +22,9 @@ const {
 } = require("./lib/patch-report.js");
 
 const { applyLinuxNewWindowLaunchActionPatch } = require("./patches/impl/new-window.js");
+const {
+  applyLinuxNotificationBadgePatch,
+} = require("./patches/impl/notification-badge.js");
 
 test("best-effort feature drift stays non-fatal without hiding changed outputs", () => {
   const report = createPatchReport();
@@ -78,11 +81,71 @@ function applyPatchTwice(source) {
   return applyLinuxNewWindowLaunchActionPatch(once);
 }
 
-test("official Linux baseline retains the required new-window core patch", () => {
-  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), ["linux-new-window-launch-action"]);
+test("official Linux baseline retains the required core patches", () => {
+  assert.deepEqual(corePatchDescriptors().map((patch) => patch.id), [
+    "linux-new-window-launch-action",
+    "linux-disable-unity-notification-badge",
+  ]);
   assert.equal(featurePatchDescriptors({
     featuresConfigPath: path.join(__dirname, "..", "linux-features", "features.example.json"),
   }).length, 0);
+});
+
+test("Linux notification badge publishes only a zero Unity count", () => {
+  const source =
+    "function handle(t){switch(t.type){case`electron-set-badge-count`:l.app.setBadgeCount(t.count);break;default:break}}";
+  const patched = applyLinuxNotificationBadgePatch(source);
+  assert.notEqual(patched, source);
+  assert.equal(applyLinuxNotificationBadgePatch(patched), patched);
+
+  const counts = [];
+  const context = {
+    l: { app: { setBadgeCount: (count) => counts.push(count) } },
+  };
+  vm.runInNewContext(`${patched};handle({type:\`electron-set-badge-count\`,count:7})`, context);
+  assert.deepEqual(counts, [0]);
+});
+
+test("Linux notification badge patch fails closed on an ambiguous upstream handler", () => {
+  const handler = "case`electron-set-badge-count`:l.app.setBadgeCount(t.count);break;";
+  const sources = [
+    `${handler}${handler}`,
+    `${handler}l.app.setBadgeCount(1);`,
+  ];
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(" "));
+  try {
+    for (const source of sources) {
+      assert.equal(applyLinuxNotificationBadgePatch(source), source);
+    }
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.match(warnings.join("\n"), /unique upstream Electron badge-count handler/);
+});
+
+test("ambiguous Linux notification badge publishers fail the required core policy", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-ambiguous-notification-badge-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const buildDir = path.join(root, ".vite", "build");
+  fs.mkdirSync(buildDir, { recursive: true });
+  const handler = "case`electron-set-badge-count`:l.app.setBadgeCount(t.count);break;";
+  fs.writeFileSync(
+    path.join(buildDir, "main-fixture.js"),
+    `${launchActionBundleFixture()}${handler}l.app.setBadgeCount(1);`,
+  );
+  const report = createPatchReport();
+  patchExtractedApp(root, {
+    report,
+    featuresConfigPath: path.join(__dirname, "..", "linux-features", "features.example.json"),
+  });
+
+  const badgePatch = report.patches.find(
+    (patch) => patch.name === "linux-disable-unity-notification-badge",
+  );
+  assert.equal(badgePatch.status, "failed-required");
+  assert.match(badgePatch.reason, /unique upstream Electron badge-count handler/);
 });
 
 test("empty registry leaves an extracted official-style app unchanged", (t) => {
