@@ -96,6 +96,58 @@ parallel sessions.
 In the desktop menu, the custom build is **ChatGPT Community** with a blue `C`;
 the unqualified **ChatGPT** entry is OpenAI's package.
 
+## AppImage opens from Flatpak Chrome but the extension cannot connect
+
+The optional `flatpak-chrome-native-messaging` feature supports the
+**AppImage + Flatpak Google Chrome (`com.google.Chrome`)** combination. Enable
+it before building the AppImage:
+
+```json
+{
+  "enabled": ["flatpak-chrome-native-messaging"]
+}
+```
+
+Fully exit ChatGPT Community and Chrome after installing the rebuilt AppImage.
+Start ChatGPT Community first, then reopen Chrome.
+
+In [issue #1434](https://github.com/ilysenko/codex-desktop-linux/issues/1434),
+**Open the app** launches Community, while the extension reports **Native
+transport disconnected** and Settings > Computer use > Google Chrome shows
+**Not installed**. Opening a URI only verifies the desktop link handler; it
+does not verify the extension's native-messaging handshake.
+
+Flatpak isolates the browser's configuration and host access. Its ability to
+open a URI through a portal does not establish access to a native host; see the
+[Flatpak sandbox documentation](https://docs.flatpak.org/en/latest/sandbox-permissions.html).
+The feature installs a private native-host manifest and Bash wrapper under
+`~/.var/app/com.google.Chrome/config/google-chrome/NativeMessagingHosts/`.
+The wrapper forwards the binary native-messaging stream to an authenticated
+`127.0.0.1` relay. The relay runs the exact official host selected by the
+upstream runtime registry outside the sandbox. It does not add a Flatpak
+override or copy the official host into the sandbox.
+
+To identify this case, open `chrome://version` in the browser that has the
+extension and inspect **Executable Path** and **Profile Path**. Check the
+Flatpak installation with:
+
+```bash
+flatpak info com.google.Chrome
+```
+
+An installed Flatpak does not prove that the current browser is using it; check
+the browser paths as well, especially when native Chrome is also installed.
+
+The launcher also points the upstream Chrome diagnostics at the Flatpak profile
+and manifest. If Settings still shows **Not installed**, verify that the
+extension is installed in the same Flatpak profile shown by `chrome://version`,
+then restart both applications in that order. If the problem persists, include
+both application and browser versions, the enabled feature list, and the
+extension error in the issue. Redact personal directory names from paths before
+sharing them.
+
+The legacy plugin-cache repair below addresses a different migration problem.
+
 ## Browser or Chrome plugin is visible but cannot connect
 
 The first Community launch after migrating from the legacy pre-official build
