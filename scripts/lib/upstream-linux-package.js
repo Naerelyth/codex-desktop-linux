@@ -115,7 +115,10 @@ async function download(url, destination) {
 function verifySigningKey(keyPath, expectedFingerprint = EXPECTED_FINGERPRINT) {
   const result = childProcess.spawnSync(
     "gpg", ["--batch", "--show-keys", "--with-colons", keyPath],
-    { encoding: "utf8" },
+    {
+      encoding: "utf8",
+      env: { ...process.env, GNUPGHOME: process.env.GNUPGHOME || path.dirname(keyPath) },
+    },
   );
   if (result.status !== 0) throw new Error(`Could not inspect pinned signing key: ${result.stderr.trim()}`);
   const fingerprints = result.stdout.split(/\r?\n/)

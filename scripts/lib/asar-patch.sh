@@ -13,7 +13,7 @@ const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const counts = {};
 for (const patch of report.patches ?? []) counts[patch.status] = (counts[patch.status] ?? 0) + 1;
 const summary = Object.entries(counts).map(([key, value]) => `${key}=${value}`).join(", ") || "none";
-console.error(`[INFO] feature patch summary: ${summary}`);
+console.error(`[INFO] ASAR patch summary: ${summary}`);
 NODE
 }
 
@@ -127,7 +127,7 @@ NODE
     descriptor_count="$(node "$SCRIPT_DIR/scripts/lib/linux-features.js" --patch-descriptor-count)"
     descriptor_count="$((descriptor_count + core_descriptor_count))"
     if [ "$descriptor_count" -eq 0 ]; then
-        info "No ASAR feature descriptors enabled; preserving official app.asar byte-for-byte"
+        info "No ASAR patch descriptors enabled; preserving official app.asar byte-for-byte"
         write_empty_feature_patch_report "$patch_report_json" "$app_asar"
         CODEX_PATCH_REPORT_RESOLVED="$patch_report_json"
         return 0

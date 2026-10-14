@@ -56,3 +56,14 @@ window selection, shell deferral, compound fail-closed semantic matching, and
 application to the signed campaign bundle. Retire the relevant repair when the
 signed stable bundle resolves its blocker; split the descriptor only if the
 clean-build policy explicitly approves multiple required core mutations.
+
+## Personal branch launch action
+
+Adapted from `new` commit `0fa9a289` for the supplied Linux
+26.1007.21434 package. Its main bundle still lacks `--new-window` handling. The required
+`linux-new-window-launch-action` descriptor creates a fresh window through
+the upstream second-instance callback. Its anchors support the current
+post-startup callback, Windows activation guard, and two-argument fresh-window
+wrapper. Both native
+and AppImage desktop actions use this flag. Ordinary launches and deep links
+retain their upstream path.

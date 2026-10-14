@@ -25,6 +25,8 @@ const officialQuitBundle =
   "if(l.dialog.showMessageBoxSync({message:`Quit?`,buttons:[{messageId:`desktop.quitConfirmation.quit`},`Cancel`]})!==0){o.preventDefault();return}" +
   "r.markQuitApproved(),S=!0,i.markAppQuitting()})}function next(){}";
 
+const personalLaunchBundle = "h(e=>{let n=f(e);if(z.deepLinks.queueProcessArgs(e)){n&&show();return}if(n){show();return}show()});let open=async(e,t)=>{M.hotkeyWindowLifecycleManager.hide();let n=M.getPrimaryWindow(),r=n??await M.createFreshWindow(e);r!=null&&focus(r)};";
+
 function linuxTarget(id, versionId, desktop) {
   return detectLinuxTargetContext({
     env: {
@@ -45,33 +47,35 @@ const ubuntuGnome = linuxTarget("ubuntu", "26.04", "ubuntu:GNOME");
 test("the official Linux baseline registers required compatibility patches", () => {
   assert.deepEqual(
     corePatchDescriptors().map(({ id, ciPolicy, phase }) => ({ id, ciPolicy, phase })),
-    [{
-      id: "quit-confirmation-focus",
-      ciPolicy: "required-upstream",
-      phase: "extracted-app:pre-webview",
-    }],
+    [
+      ...["linux-new-window-launch-action"].map((value) => ({
+        id: value, ciPolicy: "required-upstream", phase: "main-bundle",
+      })),
+      { id: "quit-confirmation-focus", ciPolicy: "required-upstream", phase: "extracted-app:pre-webview" },
+    ],
   );
   assert.deepEqual(
     allPatchPolicies({ featuresConfigPath: emptyConfig }),
-    [{
-      name: "quit-confirmation-focus",
-      ciPolicy: "required-upstream",
-      phase: "extracted-app:pre-webview",
-    }],
+    [
+      ...["linux-new-window-launch-action"].map((value) => ({
+        name: value, ciPolicy: "required-upstream", phase: "main-bundle",
+      })),
+      { name: "quit-confirmation-focus", ciPolicy: "required-upstream", phase: "extracted-app:pre-webview" },
+    ],
   );
   assert.deepEqual(
     requiredPatchNamesForProfile("upstream-build", {
       featuresConfigPath: emptyConfig,
       linuxTarget: fedoraKde,
     }),
-    ["quit-confirmation-focus"],
+    ["linux-new-window-launch-action", "quit-confirmation-focus"],
   );
   assert.deepEqual(
     requiredPatchNamesForProfile("upstream-build", {
       featuresConfigPath: emptyConfig,
       linuxTarget: ubuntuGnome,
     }),
-    ["quit-confirmation-focus"],
+    ["linux-new-window-launch-action", "quit-confirmation-focus"],
   );
 });
 
@@ -96,7 +100,7 @@ test("the default core registry repairs Quit and shell startup without changing 
     fs.mkdirSync(webviewDir, { recursive: true });
     const main = path.join(mainDir, "main.js");
     const webview = path.join(webviewDir, "app-initial-A.js");
-    fs.writeFileSync(main, officialQuitBundle);
+    fs.writeFileSync(main, officialQuitBundle + personalLaunchBundle);
     const shell = path.join(mainDir, "shell-env-fixture.js");
     fs.writeFileSync(shell, "async function load(a,b){let start=Date.now();e.app.isPackaged||clean();" +
       "let abort=new AbortController;log(`Failed to load shell env`,{resultSource:`load`})}");
@@ -110,11 +114,12 @@ test("the default core registry repairs Quit and shell startup without changing 
     assert.match(fs.readFileSync(main, "utf8"), /function codexLinuxQuitDialogParent\(/);
     assert.equal(fs.readFileSync(webview, "utf8"), "official-webview\n");
     assert.match(fs.readFileSync(shell, "utf8"), /await new Promise\(setImmediate\)/);
-    assert.equal(report.patches.length, 1);
-    assert.equal(report.patches[0].name, "quit-confirmation-focus");
-    assert.equal(report.patches[0].status, "applied");
-    assert.equal(report.patches[0].ciPolicy, "required-upstream");
-    assert.equal(report.patches[0].sourceKind, "core");
+    assert.equal(report.patches.length, 2);
+    const quitPatch = report.patches.find((patch) => patch.name === "quit-confirmation-focus");
+    assert.ok(quitPatch);
+    assert.equal(quitPatch.status, "applied");
+    assert.equal(quitPatch.ciPolicy, "required-upstream");
+    assert.equal(quitPatch.sourceKind, "core");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -129,7 +134,7 @@ test("portable artifacts include the shell repair when built on Ubuntu GNOME", (
     const shell = path.join(mainDir, "shell-env-fixture.js");
     const shellSource = "async function load(a,b){let start=Date.now();e.app.isPackaged||clean();" +
       "let abort=new AbortController;log(`Failed to load shell env`,{resultSource:`load`})}";
-    fs.writeFileSync(main, officialQuitBundle);
+    fs.writeFileSync(main, officialQuitBundle + personalLaunchBundle);
     fs.writeFileSync(shell, shellSource);
     const report = createPatchReport();
 
@@ -143,7 +148,7 @@ test("portable artifacts include the shell repair when built on Ubuntu GNOME", (
     assert.match(fs.readFileSync(shell, "utf8"), /await new Promise\(setImmediate\)/);
     assert.deepEqual(
       report.patches.map(({ name, status }) => ({ name, status })),
-      [{ name: "quit-confirmation-focus", status: "applied" }],
+      ["linux-new-window-launch-action", "quit-confirmation-focus"].map((name) => ({ name, status: "applied" })),
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

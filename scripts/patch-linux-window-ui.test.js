@@ -51,11 +51,12 @@ test("best-effort feature drift stays non-fatal without hiding changed outputs",
 test("official Linux baseline has required compatibility descriptors", () => {
   assert.deepEqual(
     corePatchDescriptors().map(({ id, ciPolicy, phase }) => ({ id, ciPolicy, phase })),
-    [{
-      id: "quit-confirmation-focus",
-      ciPolicy: "required-upstream",
-      phase: "extracted-app:pre-webview",
-    }],
+    [
+      ...["linux-new-window-launch-action"].map((value) => ({
+        id: value, ciPolicy: "required-upstream", phase: "main-bundle",
+      })),
+      { id: "quit-confirmation-focus", ciPolicy: "required-upstream", phase: "extracted-app:pre-webview" },
+    ],
   );
   assert.equal(featurePatchDescriptors({
     featuresConfigPath: path.join(__dirname, "..", "linux-features", "features.example.json"),

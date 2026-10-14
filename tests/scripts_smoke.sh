@@ -27,6 +27,8 @@ node --test scripts/gentoo-native.test.js scripts/gentoo-install.test.js scripts
 
 assert_contains packaging/linux/codex-desktop.desktop '^Name=ChatGPT Community$'
 assert_contains packaging/linux/codex-desktop.desktop '^Comment=Community Linux distribution based on OpenAI ChatGPT$'
+assert_contains packaging/appimage/codex-desktop.desktop '^Exec=env CHROME_DESKTOP=codex-desktop.desktop AppRun --new-window$'
+assert_contains packaging/linux/codex-desktop.desktop '/usr/bin/codex-desktop --new-window$'
 assert_contains install.sh 'CODEX_APP_DISPLAY_NAME:-ChatGPT Community'
 assert_contains install.sh 'cp .*ICON_SOURCE.*CODEX_APP_ID'
 assert_contains install.sh 'cp .*ICON_SOURCE.*resources/icon-chatgpt.png'
@@ -177,10 +179,9 @@ NODE
 node - <<'NODE'
 const { corePatchDescriptors } = require("./scripts/patches/runner.js");
 const descriptors = corePatchDescriptors();
-if (descriptors.length !== 1 ||
-    descriptors[0].id !== "quit-confirmation-focus" ||
-    descriptors[0].ciPolicy !== "required-upstream" ||
-    descriptors[0].phase !== "extracted-app:pre-webview") {
+const expected = ["linux-new-window-launch-action", "quit-confirmation-focus"];
+if (JSON.stringify(descriptors.map(({ id }) => id)) !== JSON.stringify(expected) ||
+    descriptors.some(({ ciPolicy }) => ciPolicy !== "required-upstream")) {
   throw new Error(`Unexpected default core patch registry: ${descriptors.map(({ id }) => id).join(", ")}`);
 }
 NODE
