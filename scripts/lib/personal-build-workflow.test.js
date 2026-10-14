@@ -140,6 +140,12 @@ test("AppImage staging excludes CLI and diagnoses the host executable", (t) => {
     assert.equal(help.status, 0, help.stderr);
     assert.equal(help.stdout.trim(), `host-cli ${flag}`);
   }
+  const attachWithShim = cp.spawnSync(path.join(appdir, "AppRun"), ["--cli", "hello"], {
+    encoding: "utf8", env: { ...env, CODEX_CLI_PATH: "" },
+  });
+  assert.equal(attachWithShim.status, 1);
+  assert.match(attachWithShim.stderr, /requires the native Codex binary/);
+  assert.match(attachWithShim.stderr, /restart Desktop with the same path/);
   diagnose = cp.spawnSync(path.join(appdir, "AppRun"), ["--diagnose"], {
     encoding: "utf8", env: { ...env, CODEX_CLI_PATH: path.join(dir, "missing") },
   });

@@ -512,6 +512,7 @@ function attachedCliTestEnvironment(fixture, options = {}) {
     ATTACHED_TEST_SOCKET: fixture.socketPath,
     ATTACHED_TEST_UID: String(process.getuid()),
     CODEX_LINUX_APP_DIR: fixture.appDir,
+    CODEX_CLI_PATH: "",
   };
 }
 
@@ -1645,6 +1646,7 @@ test("attached CLI verifier bypasses only stock introspection", () => {
         ...process.env,
         ATTACHED_TEST_ARGV_FILE: argvFile,
         CODEX_LINUX_APP_DIR: fixture.appDir,
+        CODEX_CLI_PATH: "",
         CODEX_LINUX_APP_ID: fixture.appId,
         XDG_RUNTIME_DIR: path.join(fixture.root, "runtime"),
       },

@@ -1,6 +1,6 @@
 <h1 align="center">ChatGPT Community for Linux</h1>
 
-此个人分支使用 `my-branch` 的图标，AppImage 显示名称为 **ChatGPT**。除启用 `community-profile-isolation` 时保留其必需的内置 CLI 外，AppImage 不包含内置 CLI：优先使用 `CODEX_CLI_PATH` 指定的宿主机可执行文件，否则检测 `PATH` 中的 `codex`。找不到有效可执行文件时，启动和 `--diagnose` 均会失败并提示安装或设置路径。应用构建及重建 Make 目标会先构建已启用功能的原生辅助程序。
+此个人分支使用 `my-branch` 的图标，AppImage 显示名称为 **ChatGPT**。除启用 `community-profile-isolation` 时保留其必需的内置 CLI 外，AppImage 不包含内置 CLI：优先使用 `CODEX_CLI_PATH` 指定的宿主机可执行文件，否则检测 `PATH` 中的 `codex`。找不到有效可执行文件时，启动和 `--diagnose` 均会失败并提示安装或设置路径。应用构建及重建 Make 目标会先构建已启用功能的原生辅助程序。 启用 `shared-app-server-socket` 后，实际 `--cli` 连接要求 `CODEX_CLI_PATH` 指向原生 Codex 二进制（不能是 npm/pnpm 启动脚本），并使用该路径重启 Desktop。
 
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>

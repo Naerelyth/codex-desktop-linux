@@ -36,8 +36,13 @@ configuration of that Desktop-owned authority; they do not supply a second
 override list.
 
 Native packages use the official CLI bundled in `resources/codex` by default.
-This personal branch’s AppImage omits that CLI and resolves a host CLI before
-feature hooks and attached CLI help/version dispatch.
+This personal branch’s AppImage omits that CLI unless profile isolation is
+enabled, and resolves a host CLI before feature hooks and attached CLI
+help/version dispatch. For actual `--cli` attachment, `CODEX_CLI_PATH` must
+point to the native Codex executable, not an npm/pnpm shell or Node launcher:
+the authority verifier compares it with `/proc/PID/exe`. Help/version can
+use a launcher, but attachment rejects it with guidance. Restart Desktop
+with the native path before attaching.
 An explicit `CODEX_CLI_PATH` remains supported and is preserved by the feature
 hook.
 
