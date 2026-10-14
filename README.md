@@ -1,5 +1,7 @@
 <h1 align="center">ChatGPT Community for Linux</h1>
 
+This personal branch uses the icon from `my-branch` and names AppImage builds **ChatGPT**. Unless `community-profile-isolation` is enabled (which retains its required bundled CLI), AppImage excludes the bundled CLI and requires a host executable: set `CODEX_CLI_PATH` or install `codex` on `PATH`. Startup and `--diagnose` fail with an explanation when no executable is found. App build and rebuild Make targets build enabled native feature helpers first.
+
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml/badge.svg" alt="Official Linux package build"></a>

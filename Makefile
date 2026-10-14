@@ -74,18 +74,18 @@ build-native-feature-helpers:
 
 update: rebuild-install
 
-rebuild:
+rebuild: build-native-feature-helpers
 	REBUILD_REPORT_DIR="$(REBUILD_REPORT_DIR)" CODEX_NEXT_APP_DIR="$(NEXT_APP_DIR)" \
 		./scripts/rebuild-candidate.sh $(UPSTREAM_ARG)
 
-rebuild-install:
+rebuild-install: build-native-feature-helpers
 	REBUILD_REPORT_DIR="$(REBUILD_REPORT_DIR)" CODEX_FINAL_APP_DIR="$(APP_DIR)" \
 		./scripts/rebuild-candidate.sh --install $(UPSTREAM_ARG)
 
 inspect-upstream:
 	./install.sh --inspect --report-dir "$(REBUILD_REPORT_DIR)" $(UPSTREAM_ARG)
 
-build-app build-app-fresh:
+build-app build-app-fresh: build-native-feature-helpers
 	CODEX_INSTALL_DIR="$(APP_DIR)" ./install.sh $(UPSTREAM_ARG)
 
 setup-native:
@@ -105,7 +105,6 @@ bootstrap-native: native-bootstrap-preflight
 	PATH="$$HOME/.cargo/bin:$$PATH" $(MAKE) install-native
 
 install-native: native-preflight
-	$(MAKE) build-native-feature-helpers
 	$(MAKE) build-app
 	$(MAKE) package
 	$(MAKE) install
@@ -114,7 +113,7 @@ update-native:
 	git pull --ff-only
 	$(MAKE) install-native
 
-rebuild-next:
+rebuild-next: build-native-feature-helpers
 	CODEX_INSTALL_DIR="$(NEXT_APP_DIR)" REBUILD_REPORT_DIR="$(REBUILD_REPORT_DIR)" ./install.sh $(UPSTREAM_ARG)
 
 run-app:

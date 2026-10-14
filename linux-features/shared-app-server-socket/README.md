@@ -35,7 +35,9 @@ only authority owner. Other clients attach through the stock proxy and use the
 configuration of that Desktop-owned authority; they do not supply a second
 override list.
 
-The launcher uses the official CLI bundled in `resources/codex` by default.
+Native packages use the official CLI bundled in `resources/codex` by default.
+This personal branch’s AppImage omits that CLI and resolves a host CLI before
+feature hooks and attached CLI help/version dispatch.
 An explicit `CODEX_CLI_PATH` remains supported and is preserved by the feature
 hook.
 

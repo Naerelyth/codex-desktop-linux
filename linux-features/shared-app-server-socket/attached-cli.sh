@@ -366,10 +366,10 @@ attached_cli_main() {
     done
 
     if (($# == 1)) && [[ $1 == -h || $1 == --help || $1 == -V || $1 == --version ]]; then
-        exec "${CODEX_LINUX_APP_DIR:?}/resources/codex" "$@"
+        exec "${CODEX_CLI_PATH:-${CODEX_LINUX_APP_DIR:?}/resources/codex}" "$@"
     fi
     if (($# > 0)) && [[ $1 == help ]]; then
-        exec "${CODEX_LINUX_APP_DIR:?}/resources/codex" "$@"
+        exec "${CODEX_CLI_PATH:-${CODEX_LINUX_APP_DIR:?}/resources/codex}" "$@"
     fi
 
     attached_cli_snapshot "$record_dir" "$proc_root"
