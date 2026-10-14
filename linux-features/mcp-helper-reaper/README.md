@@ -15,6 +15,19 @@ app-scoped helper roots that were adopted by init or user systemd after their
 Codex owner exited. Live Codex parents are inspected only to discover their MCP
 configuration; their helper children are never reaped.
 
+The session command resolves `CODEX_LINUX_APP_DIR` from the launcher's
+inherited environment when it runs. AppImage mount paths are never embedded
+in `hooks.json`, so restarting the same build does not change the command or
+require renewed trust just because its mount path changed. An unchanged hook
+configuration is left byte-for-byte intact, including its modification time.
+Without that environment variable (for example, a separately launched CLI),
+the session command does nothing; Desktop cold-start/after-exit scans remain
+available.
+
+Existing hooks containing a mount path are replaced on the first launch of
+the rebuilt app. This one-time command change may require trusting the hook
+again. The installer does not modify any trust approvals.
+
 ## Scope
 
 The reaper removes only helper roots whose live Codex ancestor is gone. A

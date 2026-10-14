@@ -338,3 +338,84 @@ exit 7
 
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
+
+test("session hook migrates mount paths once and remains byte-identical across restarts", (t) => {
+  const tempDir = makeTempDir("codex-reaper-stable-hook-");
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const codexHome = path.join(tempDir, "codex-home");
+  const hooksFile = path.join(codexHome, "hooks.json");
+  fs.mkdirSync(codexHome);
+  const unrelated = { matcher: "startup", hooks: [{ type: "command", command: "echo keep", timeout: 9 }] };
+  fs.writeFileSync(hooksFile, JSON.stringify({
+    custom: { keep: true },
+    hooks: { SessionStart: [unrelated, {
+      matcher: "startup|resume",
+      hooks: [{ type: "command", command: "/tmp/.mount_old/reaper # codex-mcp-helper-reaper-session", timeout: 1 }],
+    }] },
+  }));
+  const mounts = [path.join(tempDir, ".mount_first"), path.join(tempDir, ".mount_second")];
+  for (const appDir of mounts) {
+    writeExecutable(path.join(appDir, ".codex-linux/mcp-helper-reaper/codex-mcp-helper-reaper"), "#!/bin/sh\nexit 0\n");
+  }
+  const install = (appDir) => run("bash", [INSTALL_SESSION_HOOK], {
+    env: { CODEX_HOME: codexHome, CODEX_LINUX_APP_DIR: appDir, CODEX_MCP_HELPER_REAPER_DISABLE_HOOK: "0" },
+  });
+  install(mounts[0]);
+  const migrated = JSON.parse(fs.readFileSync(hooksFile, "utf8"));
+  assert.deepEqual(migrated.custom, { keep: true });
+  assert.deepEqual(migrated.hooks.SessionStart[0], unrelated);
+  assert.equal(migrated.hooks.SessionStart.length, 2);
+  const hook = migrated.hooks.SessionStart[1];
+  assert.equal(hook.matcher, "startup|resume");
+  assert.equal(hook.hooks[0].timeout, 1);
+  assert.doesNotMatch(hook.hooks[0].command, /\.mount_/);
+  assert.match(hook.hooks[0].command, /--app-dir "\$CODEX_LINUX_APP_DIR"/);
+  // A semantically identical user-formatted file must not be rewritten either.
+  fs.writeFileSync(hooksFile, JSON.stringify(migrated, null, 4));
+  fs.utimesSync(hooksFile, 1000000000, 1000000000);
+  const before = fs.readFileSync(hooksFile);
+  const beforeStat = fs.statSync(hooksFile, { bigint: true });
+  install(mounts[1]);
+  install(mounts[1]);
+  assert.deepEqual(fs.readFileSync(hooksFile), before);
+  assert.equal(fs.statSync(hooksFile, { bigint: true }).mtimeNs, beforeStat.mtimeNs);
+});
+
+test("stable session command uses the current mount and quotes paths and options", async (t) => {
+  const tempDir = makeTempDir("codex-reaper-current-mount-");
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const codexHome = path.join(tempDir, "codex-home");
+  const mounts = [path.join(tempDir, ".mount_A"), path.join(tempDir, ".mount_B ' $(not-a-command)")];
+  for (const appDir of mounts) {
+    writeExecutable(path.join(appDir, ".codex-linux/mcp-helper-reaper/codex-mcp-helper-reaper"),
+      '#!/bin/sh\nprintf "%s\\0" "$0" "$@" > "$CODEX_MCP_HELPER_REAPER_TEST_LOG"\n');
+  }
+  run("bash", [INSTALL_SESSION_HOOK], {
+    env: { CODEX_HOME: codexHome, CODEX_LINUX_APP_DIR: mounts[0], CODEX_MCP_HELPER_REAPER_DISABLE_HOOK: "0" },
+  });
+  const command = JSON.parse(fs.readFileSync(path.join(codexHome, "hooks.json"), "utf8"))
+    .hooks.SessionStart[0].hooks[0].command;
+  fs.rmSync(mounts[0], { recursive: true });
+  const log = path.join(tempDir, "call");
+  run("/bin/sh", ["-c", command], { env: {
+    CODEX_LINUX_APP_DIR: mounts[1], CODEX_MCP_HELPER_REAPER_DISABLE: "0",
+    CODEX_MCP_HELPER_REAPER_TEST_LOG: log,
+    CODEX_MCP_HELPER_REAPER_DELAY: "4", CODEX_MCP_HELPER_REAPER_PASSES: "5",
+    CODEX_MCP_HELPER_REAPER_INTERVAL: "6", CODEX_MCP_HELPER_REAPER_TERM_TIMEOUT: "7",
+  } });
+  const output = await waitForFileContent(log, (content) => content.endsWith("--quiet\0"));
+  const args = output.split("\0").slice(0, -1);
+  assert.equal(args[0], path.join(mounts[1], ".codex-linux/mcp-helper-reaper/codex-mcp-helper-reaper"));
+  assert.equal(args[1], "--codex-parent");
+  assert.match(args[2], /^\d+$/);
+  assert.deepEqual(args.slice(3), ["--include-orphans", "--app-dir", mounts[1],
+    "--delay", "4", "--passes", "5", "--interval", "6", "--term-timeout", "7", "--quiet"]);
+  fs.unlinkSync(log);
+  for (const [appDir, disabled] of [["", "0"], [path.join(tempDir, "missing"), "0"], [mounts[1], "1"]]) {
+    run("/bin/sh", ["-c", command], { env: {
+      CODEX_LINUX_APP_DIR: appDir, CODEX_MCP_HELPER_REAPER_DISABLE: disabled,
+      CODEX_MCP_HELPER_REAPER_TEST_LOG: log,
+    } });
+    assert.equal(fs.existsSync(log), false);
+  }
+});
