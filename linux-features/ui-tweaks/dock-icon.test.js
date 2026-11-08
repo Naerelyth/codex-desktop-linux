@@ -1000,7 +1000,7 @@ test("AppImage synchronization writes persistent launch commands for the app and
       managed.includes(`Exec="${desktopAppImage}" --show %u\n`),
       true,
     );
-    assert.ok(managed.includes(`Exec="${desktopAppImage}" --codex-community-new-window\n`));
+    assert.ok(managed.includes(`Exec="${desktopAppImage}" --new-window\n`));
     const validation = childProcess.spawnSync("desktop-file-validate", [fixture.managedDesktop], {
       encoding: "utf8",
     });

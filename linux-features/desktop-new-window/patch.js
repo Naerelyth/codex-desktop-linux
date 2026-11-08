@@ -2,7 +2,7 @@
 
 const { escapeRegExp, findMatchingBrace } = require("../../scripts/patches/lib/minified-js.js");
 
-const ARGUMENT = "--codex-community-new-window";
+const ARGUMENT = "--new-window";
 const MARKER = "/* codex-linux-desktop-new-window */";
 const ID = "[A-Za-z_$][\\w$]*";
 

@@ -225,7 +225,7 @@ test("second launch reveals the hidden window through the upstream handler", asy
 });
 
 test("an explicit desktop New Window launch opens visibly with tray startup enabled", async () => {
-  const argv = ["ChatGPT", "--codex-community-new-window"];
+  const argv = ["ChatGPT", "--new-window"];
   const regular = await runStartup({ argv });
   const autostart = await runStartup({ onlyOnBoot: true, argv: [...argv, "--codex-autostart"] });
   for (const { calls } of [regular, autostart]) {

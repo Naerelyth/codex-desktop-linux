@@ -19,3 +19,7 @@ upstream release changes the handoff, the build records a warning in
 
 Run `node --test linux-features/desktop-new-window/test.js` and
 `bash tests/scripts_smoke.sh` for the patch and packaging checks.
+
+The internal action parameter is `--new-window` in both identity modes.
+It requests a fresh window through the current app's single-instance handler;
+it does not select an application identity or a separate profile.

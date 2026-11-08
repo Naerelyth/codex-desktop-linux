@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { applyNewWindowPatch } = require("./patch.js");
 
-const ARGUMENT = "--codex-community-new-window";
+const ARGUMENT = "--new-window";
 const fixture = `function startup(activation,windows,bindWindowServices,deepLinks,focus){
   const {setSecondInstanceArgsHandler:register}=activation;
   const fresh=async(route,opener)=>{return await windows.createFreshWindow(route,opener)};
@@ -61,4 +61,30 @@ test("missing or ambiguous upstream contracts leave the bundle untouched", t => 
     assert.equal(applyNewWindowPatch(source), source);
   }
   assert.equal(warn.mock.callCount(), 5);
+});
+
+
+test("new-window patch matches exactly one supplied official main-process chunk", {
+  skip: process.env.CODEX_SIGNED_EXTRACTED_APP == null,
+}, () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const vm = require("node:vm");
+  const { findMainProcessChunks } = require("../../scripts/patches/lib/assets.js");
+  const main = findMainProcessChunks(process.env.CODEX_SIGNED_EXTRACTED_APP);
+  assert.ok(main);
+  let changed = 0;
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    for (const name of main.chunks) {
+      const source = fs.readFileSync(path.join(main.buildDir, name), "utf8");
+      const patched = applyNewWindowPatch(source);
+      if (patched === source) continue;
+      changed++;
+      new vm.Script(patched);
+      assert.equal(applyNewWindowPatch(patched), patched);
+    }
+  } finally { console.warn = warn; }
+  assert.equal(changed, 1);
 });

@@ -1188,7 +1188,7 @@
             desktop-file-validate "$desktop"
             grep -Fx 'Actions=new-window;' "$desktop"
             grep -Fx '[Desktop Action new-window]' "$desktop"
-            grep -Fx "Exec=env BAMF_DESKTOP_FILE_HINT=$desktop CHROME_DESKTOP=codex-desktop.desktop ${package}/bin/codex-desktop --codex-community-new-window" "$desktop"
+            grep -Fx "Exec=env BAMF_DESKTOP_FILE_HINT=$desktop CHROME_DESKTOP=codex-desktop.desktop ${package}/bin/codex-desktop --new-window" "$desktop"
             ! grep -Eq '^\[Desktop Action (CheckForUpdates|InstallReadyUpdate)\]$' "$desktop"
             touch "$out"
           '';

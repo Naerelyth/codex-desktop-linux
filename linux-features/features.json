@@ -1,0 +1,8 @@
+{
+  "enabled": [
+    "node-repl-reaper",
+    "mcp-helper-reaper",
+    "shallow-repository-watches",
+    "desktop-new-window"
+  ]
+}

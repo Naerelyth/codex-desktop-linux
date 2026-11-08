@@ -55,9 +55,9 @@ assert_absent "$desktop_fixture/without-updater.desktop" '^Actions=|^\[Desktop A
 assert_contains "$desktop_fixture/without-updater.desktop" '^Exec=.*/usr/bin/codex-desktop %u$'
 assert_contains "$desktop_fixture/new-window-and-updater.desktop" '^Actions=new-window;CheckForUpdates;InstallReadyUpdate;$'
 assert_contains "$desktop_fixture/new-window-only.desktop" '^Actions=new-window;$'
-assert_contains "$desktop_fixture/new-window-only.desktop" '^Exec=.*/usr/bin/codex-desktop --codex-community-new-window$'
+assert_contains "$desktop_fixture/new-window-only.desktop" '^Exec=.*/usr/bin/codex-desktop --new-window$'
 assert_absent "$desktop_fixture/new-window-only.desktop" 'CheckForUpdates|InstallReadyUpdate'
-assert_contains "$desktop_fixture/appimage.desktop" '^Exec=AppRun --codex-community-new-window$'
+assert_contains "$desktop_fixture/appimage.desktop" '^Exec=AppRun --new-window$'
 assert_absent "$desktop_fixture/drifted.desktop" 'new-window'
 if command -v desktop-file-validate >/dev/null 2>&1; then
     desktop-file-validate "$desktop_fixture/with-updater.desktop" "$desktop_fixture/without-updater.desktop" \
