@@ -84,3 +84,7 @@ available.
 rtk cargo test --manifest-path linux-features/mcp-helper-reaper/reaper/Cargo.toml
 node --test linux-features/mcp-helper-reaper/test.js
 ```
+
+When the hook configuration is unchanged, installation preserves the exact file
+bytes and modification time, including user formatting. Legacy mount paths are
+migrated once; existing native-install fallback behavior is retained.

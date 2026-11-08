@@ -34,6 +34,7 @@ esac
 CODEX_MCP_HELPER_REAPER_FALLBACK_APP_DIR="$fallback_app_dir" \
 CODEX_MCP_HELPER_REAPER_HOOKS_FILE="$hooks_file" \
 python3 - <<'PY'
+import copy
 import json
 import os
 import shlex
@@ -71,6 +72,8 @@ if hooks_file.exists():
         data = {}
 else:
     data = {}
+
+original_data = copy.deepcopy(data)
 
 if not isinstance(data, dict):
     data = {}
@@ -117,5 +120,6 @@ cleaned_entries.append({
     ],
 })
 hooks["SessionStart"] = cleaned_entries
-hooks_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+if data != original_data:
+    hooks_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
