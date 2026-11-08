@@ -74,6 +74,10 @@ prepare_appdir() {
         "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
     cp -aT "$APP_DIR" "$APPDIR/opt/$PACKAGE_NAME"
+    # Profile isolation owns a wrapper that requires this bundled executable.
+    if [ ! -f "$APPDIR/opt/$PACKAGE_NAME/.codex-linux/features/community-profile-isolation/codex-cli-wrapper.sh" ]; then
+        rm -f "$APPDIR/opt/$PACKAGE_NAME/resources/codex"
+    fi
     mkdir -p "$APPDIR/opt/$PACKAGE_NAME/.codex-linux"
 
     render_template "$APPRUN_TEMPLATE" "$APPDIR/AppRun"

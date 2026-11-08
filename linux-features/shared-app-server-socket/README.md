@@ -35,7 +35,12 @@ only authority owner. Other clients attach through the stock proxy and use the
 configuration of that Desktop-owned authority; they do not supply a second
 override list.
 
-The launcher uses the official CLI bundled in `resources/codex` by default.
+Native packages use the official CLI bundled in `resources/codex` by default.
+AppImage uses a host CLI unless `community-profile-isolation` is enabled.
+Set `CODEX_CLI_PATH` or install `codex` on `PATH` before launching.
+Actual `--cli` attachment requires the native Codex binary, since authority
+verification compares it with `/proc/PID/exe`. npm/pnpm launchers can serve
+help/version only. Restart Desktop with the native path before attaching.
 An explicit `CODEX_CLI_PATH` remains supported and is preserved by the feature
 hook.
 

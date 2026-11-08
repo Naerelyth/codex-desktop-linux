@@ -31,12 +31,27 @@ unchanged after enabled feature hooks have run.
 EOF
 }
 
+resolve_packaged_cli() {
+    if [ -f "$HOOK_ROOT/codex-packaged-runtime.sh" ]; then
+        # shellcheck disable=SC1091
+        . "$HOOK_ROOT/codex-packaged-runtime.sh"
+        if declare -F codex_packaged_runtime_resolve_cli >/dev/null; then
+            codex_packaged_runtime_resolve_cli || return 1
+        fi
+    fi
+}
+
 diagnose() {
     local failed=0
+    local cli="$CODEX_LINUX_APP_DIR/resources/codex"
+    resolve_packaged_cli || return 1
+    if declare -F codex_packaged_runtime_resolve_cli >/dev/null; then
+        cli="$CODEX_CLI_PATH"
+    fi
     for required in \
         "$CHATGPT_BINARY" \
         "$CODEX_LINUX_APP_DIR/resources/app.asar" \
-        "$CODEX_LINUX_APP_DIR/resources/codex" \
+        "$cli" \
         "$CODEX_LINUX_APP_DIR/resources/rg" \
         "$CODEX_LINUX_APP_DIR/resources/codex-code-mode-host"; do
         if [ -e "$required" ]; then
@@ -360,6 +375,7 @@ if [ "${1:-}" = "--cli" ]; then
         printf '%s\n' 'codex-desktop: --cli requires the shared-app-server-socket feature' >&2
         exit 2
     fi
+    resolve_packaged_cli
     shift
     exec "$ATTACHED_CLI" "$@"
 fi
@@ -381,6 +397,7 @@ if [ -n "${NIXOS_OZONE_WL:-}" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
     )
 fi
 load_environment_hooks
+resolve_packaged_cli
 canonicalize_codex_home
 refresh_legacy_bundled_plugin_caches
 load_user_electron_args

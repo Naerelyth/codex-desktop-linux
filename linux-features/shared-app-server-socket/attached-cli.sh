@@ -366,10 +366,22 @@ attached_cli_main() {
     done
 
     if (($# == 1)) && [[ $1 == -h || $1 == --help || $1 == -V || $1 == --version ]]; then
-        exec "${CODEX_LINUX_APP_DIR:?}/resources/codex" "$@"
+        exec "${CODEX_CLI_PATH:-${CODEX_LINUX_APP_DIR:?}/resources/codex}" "$@"
     fi
     if (($# > 0)) && [[ $1 == help ]]; then
-        exec "${CODEX_LINUX_APP_DIR:?}/resources/codex" "$@"
+        exec "${CODEX_CLI_PATH:-${CODEX_LINUX_APP_DIR:?}/resources/codex}" "$@"
+    fi
+
+    # Host package managers often expose a shell/Node shim. It can run help,
+    # but cannot satisfy the authority's /proc executable identity contract.
+    local cli_header=
+    if [[ -n ${CODEX_CLI_PATH:-} && -f $CODEX_CLI_PATH ]]; then
+        IFS= read -r -n 2 cli_header <"$CODEX_CLI_PATH" || true
+        if [[ $cli_header == '#!' ]]; then
+            printf '%s\n' \
+                'codex-desktop: --cli attachment requires the native Codex binary, not an npm/pnpm or shell wrapper. Set CODEX_CLI_PATH to the real executable and restart Desktop with the same path.' >&2
+            return 1
+        fi
     fi
 
     attached_cli_snapshot "$record_dir" "$proc_root"

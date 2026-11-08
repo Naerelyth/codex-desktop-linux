@@ -1,5 +1,7 @@
 <h1 align="center">ChatGPT Community for Linux</h1>
 
+此个人分支会在应用构建及重建前构建已启用的原生辅助程序。AppImage 使用 `CODEX_CLI_PATH` 或 `PATH` 中的宿主 Codex CLI；启用配置隔离时保留其必需的内置 CLI。启用 `shared-app-server-socket` 后，实际连接要求使用原生 Codex 二进制，不能使用 npm/pnpm 启动脚本；请用该 `CODEX_CLI_PATH` 重启 Desktop。
+
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml/badge.svg" alt="官方 Linux 软件包构建"></a>
@@ -14,7 +16,7 @@
 它验证并重新打包已签名的官方 Linux 软件包，提供默认关闭的 Linux 扩展，
 并可构建 deb、RPM、pacman、AppImage 和 Nix 产物。
 
-桌面菜单中的自定义应用名为 **ChatGPT Community**，图标带有蓝色 `C`。
+桌面菜单中的自定义应用名为 **ChatGPT Community**，使用此个人分支的图标。
 软件包名、命令名和安装目录仍为 `codex-desktop`、`codex-desktop` 和
 `/opt/codex-desktop`，因此可以与 OpenAI 的 **ChatGPT** 清楚区分。
 

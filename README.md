@@ -1,5 +1,7 @@
 <h1 align="center">ChatGPT Community for Linux</h1>
 
+This personal branch builds enabled native helpers before app builds and rebuilds. AppImage uses a host Codex CLI from `CODEX_CLI_PATH` or `PATH`; profile isolation retains its required bundled CLI. With `shared-app-server-socket`, attachment requires the native Codex binary, rather than an npm/pnpm launcher; restart Desktop with that `CODEX_CLI_PATH`.
+
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml/badge.svg" alt="Official Linux package build"></a>
@@ -16,7 +18,7 @@ repackages the signed upstream Linux payload, adds disabled-by-default Linux
 features, and produces deb, RPM, pacman, AppImage, and Nix outputs.
 
 The custom application appears in desktop menus as **ChatGPT Community** and
-uses an icon marked with a blue `C`. Its package and command are
+uses this personal branch’s icon. Its package and command are
 `codex-desktop`, and its installation root is `/opt/codex-desktop`, so it is
 easy to distinguish from OpenAI's separate **ChatGPT** package.
 
@@ -263,7 +265,7 @@ state.
 | Reliable shell environment startup | Always | Owned by the verified upstream runtime; no core shell-startup patch is applied |
 | Reliable approved quit completion | Always | A required core patch consumes upstream quit approval in the unique `before-quit` owner so teardown reaches `will-quit` |
 | Optional Linux feature framework | Disabled | Configure with `make setup-native` |
-| Distinct desktop identity | Always | **ChatGPT Community**, blue `C` icon, `codex-desktop` package identity |
+| Distinct desktop identity | Always | **ChatGPT Community**, personal icon, `codex-desktop` package identity |
 
 ### Optional Linux features
 
