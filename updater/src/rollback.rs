@@ -251,7 +251,11 @@ async fn run_with_launcher(
     apply_successful_rollback(state, package, install::installed_package_version());
     state.error_message = None;
     state.save_updater(&paths.state_file)?;
-    println!("Rolled back codex-desktop to {}.", state.installed_version);
+    println!(
+        "Rolled back {} to {}.",
+        crate::identity::package_name(),
+        state.installed_version
+    );
     Ok(())
 }
 

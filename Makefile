@@ -5,7 +5,9 @@ APP_DIR ?= $(CURDIR)/codex-app
 NEXT_APP_DIR ?= $(CURDIR)/codex-app-next
 REBUILD_REPORT_DIR ?= $(CURDIR)/dist-next/rebuild
 UPSTREAM_DEB ?=
-PACKAGE_NAME := codex-desktop
+CODEX_IDENTITY ?= community
+export CODEX_IDENTITY
+PACKAGE_NAME := $(if $(filter upstream,$(CODEX_IDENTITY)),chatgpt,codex-desktop)
 PACKAGE_FORMAT_DETECTOR := $(CURDIR)/scripts/lib/detect-package-format.sh
 PACKAGE_WITH_UPDATER ?= $(if $(filter ebuild,$(shell "$(PACKAGE_FORMAT_DETECTOR)")),0,1)
 MAX_BUILD_THREADS ?= 0
@@ -41,7 +43,7 @@ help:
 	@printf '  %-20s %s\n' 'make deb|rpm|pacman|gentoo' 'Build a native package in dist/'
 	@printf '  %-20s %s\n' 'make appimage' 'Build the AppImage in dist/'
 	@printf '  %-20s %s\n' 'make ci-all' 'Run the complete local CI suite'
-	@printf '\nVariables:\n  UPSTREAM_DEB=/path/to/chatgpt_<version>_<arch>.deb\n  PACKAGE_WITH_UPDATER=0\n  MAX_BUILD_THREADS=8\n\n'
+	@printf '\nVariables:\n  UPSTREAM_DEB=/path/to/chatgpt_<version>_<arch>.deb\n  CODEX_IDENTITY=upstream\n  PACKAGE_WITH_UPDATER=0\n  MAX_BUILD_THREADS=8\n\n'
 
 check:
 	cargo check $(CARGO_JOBS_ARG) -p codex-update-manager

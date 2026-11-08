@@ -67,6 +67,7 @@ Options:
                  for this invocation only; structural checks still apply
 
 Environment variables:
+  CODEX_IDENTITY     community (default) or upstream (official package and desktop identity)
   CODEX_INSTALL_DIR   Override the install directory (default: ./codex-app)
   CODEX_INSTALL_ALLOW_RUNNING=1
                       Allow overwriting INSTALL_DIR while Codex is running

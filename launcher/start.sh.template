@@ -389,6 +389,10 @@ esac
 [ -x "$CHATGPT_BINARY" ] || { printf 'ChatGPT executable is missing: %s\n' "$CHATGPT_BINARY" >&2; exit 1; }
 
 ELECTRON_ARGS=("--class=$CODEX_LINUX_APP_ID")
+if [ -f "$HOOK_ROOT/identity" ] && [ "$(cat "$HOOK_ROOT/identity")" = upstream ]; then
+    # Let the official runtime choose its original window identity.
+    ELECTRON_ARGS=()
+fi
 if [ -n "${NIXOS_OZONE_WL:-}" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
     ELECTRON_ARGS+=(
         --ozone-platform=wayland

@@ -2,6 +2,15 @@
 
 此个人分支会在应用构建及重建前构建已启用的原生辅助程序。AppImage 使用 `CODEX_CLI_PATH` 或 `PATH` 中的宿主 Codex CLI；启用配置隔离时保留其必需的内置 CLI。启用 `shared-app-server-socket` 后，实际连接要求使用原生 Codex 二进制，不能使用 npm/pnpm 启动脚本；请用该 `CODEX_CLI_PATH` 重启 Desktop。
 
+需要使用上游身份的个人版本时，在应用构建和打包两个阶段都设置 `CODEX_IDENTITY=upstream`：
+
+```bash
+make CODEX_IDENTITY=upstream UPSTREAM_DEB=/home/alex/TMP/chatgpt_amd64.deb build-app
+make CODEX_IDENTITY=upstream appimage  # 也可用 deb、rpm、pacman
+```
+
+此选项采用 `chatgpt` 包名、命令名及官方应用身份；`.desktop` 保留官方名称、说明、通用名称、分类和 MIME 类型，已启用功能可以追加桌面动作，AppImage 仅将启动命令适配为 `AppRun`。两种身份模式都使用提交 `1f494234` 中的个人图标，并保持相同的功能配置、CLI 策略及 `PACKAGE_WITH_UPDATER` 开关；更新器重建时会保留所选身份。含更新器的原生包会声明与 Community 包冲突，因为两者共用更新器程序和服务。原生包安装到 `/opt/chatgpt`，会替换已安装的官方 `chatgpt` 包。默认仍为 `CODEX_IDENTITY=community`，切换身份需要重新构建应用。该选项支持直接运行 `install.sh` 以及 deb/RPM/pacman/AppImage 构建器；Nix 和 Gentoo 仍采用现有 Community 身份。
+
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml/badge.svg" alt="官方 Linux 软件包构建"></a>

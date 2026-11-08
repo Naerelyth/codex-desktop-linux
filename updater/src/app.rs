@@ -544,7 +544,7 @@ async fn check(
 
     if config.notifications {
         let _ = notify::send(
-            "codex-desktop update ready",
+            &format!("{} update ready", crate::identity::package_name()),
             &format!(
                 "Version {} has been rebuilt from OpenAI's signed Linux package.",
                 metadata.version
@@ -797,7 +797,7 @@ async fn install_ready_with_launcher(
     let _ = cache_cleanup::prune(&paths.cache_dir, &config.workspace_root, state);
     if config.notifications {
         let _ = notify::send(
-            "codex-desktop updated",
+            &format!("{} updated", crate::identity::package_name()),
             &format!("Installed {}.", state.installed_version),
         );
     }
@@ -871,7 +871,10 @@ fn fail_update_with<T>(
     });
     let result = fail(state, paths, error);
     if let Some(body) = notification {
-        send("codex-desktop update failed", &body);
+        send(
+            &format!("{} update failed", crate::identity::package_name()),
+            &body,
+        );
     }
     result
 }

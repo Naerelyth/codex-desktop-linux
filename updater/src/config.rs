@@ -5,8 +5,6 @@ use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, time::Duration};
 
-const SERVICE_NAME: &str = "codex-update-manager";
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct RuntimeConfig {
@@ -30,8 +28,14 @@ impl Default for RuntimeConfig {
             auto_install_on_app_exit: true,
             notifications: true,
             workspace_root: PathBuf::new(),
-            builder_bundle_root: PathBuf::from("/opt/codex-desktop/update-builder"),
-            app_executable_path: PathBuf::from("/opt/codex-desktop/ChatGPT"),
+            builder_bundle_root: PathBuf::from(format!(
+                "/opt/{}/update-builder",
+                crate::identity::package_name()
+            )),
+            app_executable_path: PathBuf::from(format!(
+                "/opt/{}/ChatGPT",
+                crate::identity::package_name()
+            )),
             feature_config_path: None,
         }
     }
@@ -49,12 +53,16 @@ pub struct RuntimePaths {
 
 impl RuntimePaths {
     pub fn from_base_dirs(base: &BaseDirs) -> Self {
-        let config_dir = base.config_dir().join(SERVICE_NAME);
+        let config_dir = base
+            .config_dir()
+            .join(crate::identity::current().state_name());
         let state_dir = base
             .state_dir()
             .unwrap_or_else(|| base.data_local_dir())
-            .join(SERVICE_NAME);
-        let cache_dir = base.cache_dir().join(SERVICE_NAME);
+            .join(crate::identity::current().state_name());
+        let cache_dir = base
+            .cache_dir()
+            .join(crate::identity::current().state_name());
         Self {
             config_file: config_dir.join("config.toml"),
             state_file: state_dir.join("state.json"),
@@ -152,7 +160,7 @@ mod tests {
         assert!(config.repository_url.ends_with("/linux/deb"));
         assert_eq!(
             config.app_executable_path,
-            PathBuf::from("/opt/codex-desktop/ChatGPT")
+            PathBuf::from(format!("/opt/{}/ChatGPT", crate::identity::package_name()))
         );
         Ok(())
     }

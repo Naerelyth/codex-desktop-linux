@@ -5,6 +5,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/package-common.sh"
 APP_DIR="${APP_DIR_OVERRIDE:-$REPO_DIR/codex-app}"
 DIST_DIR="${DIST_DIR_OVERRIDE:-$REPO_DIR/dist}"
+[ "$CODEX_IDENTITY" != upstream ] || error "CODEX_IDENTITY=upstream is supported by deb, RPM, pacman and AppImage builders"
 PACKAGE_NAME=codex-desktop
 PACKAGE_WITH_UPDATER="${PACKAGE_WITH_UPDATER:-0}"
 ICON_SOURCE="$(resolve_package_icon_source)"

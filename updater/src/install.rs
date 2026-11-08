@@ -16,7 +16,7 @@ use std::os::unix::ffi::OsStrExt;
 #[cfg(unix)]
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 
-const PACKAGE_NAME: &str = "codex-desktop";
+use crate::identity::package_name;
 const INSTALLED_UPDATER_BINARY: &str = "/usr/bin/codex-update-manager";
 const DELETED_PATH_SUFFIX: &[u8] = b" (deleted)";
 const APT_CANDIDATES: &[&str] = &["/usr/bin/apt", "/bin/apt"];
@@ -193,7 +193,7 @@ pub fn installed_package_version() -> String {
 fn installed_deb_version() -> String {
     installed_version_from_command(
         &program_path(DPKG_QUERY_CANDIDATES, "dpkg-query"),
-        &["-W", "-f=${Version}", PACKAGE_NAME],
+        &["-W", "-f=${Version}", package_name()],
     )
 }
 
@@ -207,7 +207,7 @@ pub(crate) fn installed_package_version_for_recovery(path: &Path) -> Option<Stri
 
 fn installed_deb_version_if_configured() -> Option<String> {
     let output = Command::new(program_path(DPKG_QUERY_CANDIDATES, "dpkg-query"))
-        .args(["-W", "-f=${Status}\t${Version}", PACKAGE_NAME])
+        .args(["-W", "-f=${Status}\t${Version}", package_name()])
         .output()
         .ok()?;
     if !output.status.success() {
@@ -228,7 +228,7 @@ fn parse_configured_deb_version(stdout: &[u8]) -> Option<String> {
 fn installed_rpm_version_for_recovery(path: &Path) -> Option<String> {
     let candidate = rpm_package_identity(path).ok()?;
     let installed = rpm_installed_package_identity().ok()?;
-    if candidate != installed || installed.name != PACKAGE_NAME {
+    if candidate != installed || installed.name != package_name() {
         return None;
     }
 
@@ -236,7 +236,7 @@ fn installed_rpm_version_for_recovery(path: &Path) -> Option<String> {
     // the payload on disk. The package identity match alone would not rule
     // out a database entry from an interrupted or unrelated transaction.
     let verification = Command::new(program_path(RPM_CANDIDATES, "rpm"))
-        .args(["-V", "--noscripts", "--", PACKAGE_NAME])
+        .args(["-V", "--noscripts", "--", package_name()])
         .output()
         .ok()?;
     if !verification.status.success() || !verification.stdout.is_empty() {
@@ -265,7 +265,7 @@ fn rpm_installed_package_identity() -> Result<PackageIdentity> {
             "--queryformat",
             RPM_IDENTITY_QUERY,
             "--",
-            PACKAGE_NAME,
+            package_name(),
         ])
         .output()
         .context("Failed to inspect installed RPM package identity")?;
@@ -293,14 +293,14 @@ fn parse_rpm_package_identity(stdout: &[u8]) -> Result<PackageIdentity> {
 fn installed_pacman_version_for_recovery(path: &Path) -> Option<String> {
     let candidate = pacman_package_identity(path).ok()?;
     let installed = pacman_installed_package_identity().ok()?;
-    if candidate != installed || installed.name != PACKAGE_NAME {
+    if candidate != installed || installed.name != package_name() {
         return None;
     }
 
     // pacman -Qkk verifies that the files recorded for the installed package
     // are present and intact. This is stronger than trusting pacman -Q's
     // version string after an owner process disappeared.
-    let verification = pacman_query_command(["-Qkk", "--", PACKAGE_NAME])
+    let verification = pacman_query_command(["-Qkk", "--", package_name()])
         .output()
         .ok()?;
     if !verification.status.success() {
@@ -323,7 +323,7 @@ fn pacman_package_identity(path: &Path) -> Result<PackageIdentity> {
 }
 
 fn pacman_installed_package_identity() -> Result<PackageIdentity> {
-    let output = pacman_query_command(["-Qi", "--", PACKAGE_NAME])
+    let output = pacman_query_command(["-Qi", "--", package_name()])
         .output()
         .context("Failed to inspect installed pacman package identity")?;
     anyhow::ensure!(
@@ -360,13 +360,18 @@ fn parse_pacman_package_identity(stdout: &[u8]) -> Result<PackageIdentity> {
 fn installed_rpm_version() -> String {
     installed_version_from_command(
         &program_path(RPM_CANDIDATES, "rpm"),
-        &["-q", "--queryformat", "%{VERSION}-%{RELEASE}", PACKAGE_NAME],
+        &[
+            "-q",
+            "--queryformat",
+            "%{VERSION}-%{RELEASE}",
+            package_name(),
+        ],
     )
 }
 
 fn installed_pacman_version() -> String {
     match Command::new(program_path(PACMAN_CANDIDATES, "pacman"))
-        .args(["-Q", PACKAGE_NAME])
+        .args(["-Q", package_name()])
         .output()
     {
         Ok(output) if output.status.success() => parse_pacman_installed_version(output.stdout),
@@ -582,8 +587,8 @@ fn set_private_file_permissions(_path: &Path) -> Result<()> {
 
 fn stable_file_name(kind: PackageKind, path: &Path) -> Result<String> {
     match kind {
-        PackageKind::Deb => Ok("codex-desktop.deb".to_string()),
-        PackageKind::Rpm => Ok("codex-desktop.rpm".to_string()),
+        PackageKind::Deb => Ok(format!("{}.deb", package_name())),
+        PackageKind::Rpm => Ok(format!("{}.rpm", package_name())),
         PackageKind::Pacman => path
             .file_name()
             .with_context(|| format!("Pacman package path has no file name: {}", path.display()))
@@ -591,11 +596,12 @@ fn stable_file_name(kind: PackageKind, path: &Path) -> Result<String> {
     }
 }
 
-fn ensure_package_name(package_name: &str, path: &Path) -> Result<()> {
+fn ensure_package_name(candidate_name: &str, path: &Path) -> Result<()> {
     anyhow::ensure!(
-        package_name == PACKAGE_NAME,
-        "Refusing to install package {package_name} from {}; expected {PACKAGE_NAME}",
-        path.display()
+        candidate_name == package_name(),
+        "Refusing to install package {candidate_name} from {}; expected {}",
+        path.display(),
+        package_name()
     );
     Ok(())
 }
@@ -942,7 +948,7 @@ fn pacman_package_version(path: &Path) -> Result<String> {
 
     let stripped = strip_pacman_package_suffix(file_name)
         .with_context(|| format!("Not a valid pacman package filename: {file_name}"))?;
-    let prefix = format!("{PACKAGE_NAME}-");
+    let prefix = format!("{}-", package_name());
     let without_name = stripped
         .strip_prefix(&prefix)
         .with_context(|| format!("Pacman package filename does not start with {prefix}"))?;
@@ -1610,6 +1616,37 @@ mod tests {
             .expect_err("foreign package names must be rejected");
 
         assert!(error.to_string().contains("expected codex-desktop"));
+    }
+
+    #[test]
+    fn upstream_identity_accepts_only_chatgpt_artifacts() -> Result<()> {
+        crate::identity::with_identity(crate::identity::Identity::Upstream, || {
+            ensure_package_name("chatgpt", Path::new("/tmp/chatgpt.deb"))?;
+            assert!(ensure_package_name("codex-desktop", Path::new("/tmp/community.deb")).is_err());
+            assert_eq!(
+                stable_file_name(PackageKind::Deb, Path::new("candidate.deb"))?,
+                "chatgpt.deb"
+            );
+            assert_eq!(
+                stable_file_name(PackageKind::Rpm, Path::new("candidate.rpm"))?,
+                "chatgpt.rpm"
+            );
+            let config = crate::config::RuntimeConfig::default();
+            assert_eq!(
+                config.app_executable_path,
+                Path::new("/opt/chatgpt/ChatGPT")
+            );
+            assert_eq!(
+                config.builder_bundle_root,
+                Path::new("/opt/chatgpt/update-builder")
+            );
+            let paths = crate::config::RuntimePaths::detect()?;
+            assert_eq!(
+                paths.state_dir.file_name().unwrap(),
+                "chatgpt-update-manager"
+            );
+            Ok(())
+        })
     }
 
     #[test]

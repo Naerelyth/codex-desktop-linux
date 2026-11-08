@@ -132,6 +132,7 @@ main() {
  This package was built without codex-update-manager. Update manually from a trusted checkout.
 CONTROL
     fi
+    render_package_branding "$PKG_ROOT/DEBIAN/control"
     chmod 0644 "$PKG_ROOT/DEBIAN/control"
     if package_with_updater_enabled; then
         stage_deb_maintainer_scripts \

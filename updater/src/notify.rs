@@ -4,11 +4,6 @@ use anyhow::Result;
 use notify_rust::Hint;
 use std::path::{Path, PathBuf};
 
-const APP_NAME: &str = "ChatGPT Community";
-const DESKTOP_ENTRY: &str = "codex-desktop";
-const PACKAGED_BUNDLE_ICON_PATH: &str = "/opt/codex-desktop/.codex-linux/codex-desktop.png";
-const SYSTEM_ICON_PATH: &str = "/usr/share/icons/hicolor/256x256/apps/codex-desktop.png";
-
 /// Sends a desktop notification through the host notification service.
 pub fn send(summary: &str, body: &str) -> Result<()> {
     let notification = base_notification(summary, body);
@@ -23,15 +18,17 @@ fn base_notification(summary: &str, body: &str) -> notify_rust::Notification {
     notification
         .summary(summary)
         .body(body)
-        .appname(APP_NAME)
-        .hint(Hint::DesktopEntry(DESKTOP_ENTRY.to_owned()));
+        .appname(crate::identity::current().display_name())
+        .hint(Hint::DesktopEntry(
+            crate::identity::package_name().to_owned(),
+        ));
 
     if let Some(icon_path) = icon_path.as_deref() {
         let icon_uri = path_to_file_uri(icon_path);
         notification.icon(&icon_uri);
         notification.image_path(&icon_uri);
     } else {
-        notification.icon(DESKTOP_ENTRY);
+        notification.icon(crate::identity::package_name());
     }
 
     notification
@@ -43,8 +40,14 @@ fn resolve_icon_path() -> Option<PathBuf> {
 
 fn bundled_icon_candidates() -> Vec<PathBuf> {
     let mut candidates = vec![
-        PathBuf::from(PACKAGED_BUNDLE_ICON_PATH),
-        PathBuf::from(SYSTEM_ICON_PATH),
+        PathBuf::from(format!(
+            "/opt/{0}/.codex-linux/{0}.png",
+            crate::identity::package_name()
+        )),
+        PathBuf::from(format!(
+            "/usr/share/icons/hicolor/256x256/apps/{}.png",
+            crate::identity::package_name()
+        )),
     ];
 
     if let Ok(current_exe) = std::env::current_exe() {

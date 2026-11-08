@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. "${BASH_SOURCE[0]%/*}/build-identity.sh"
+
 info() {
     echo "[INFO] $*" >&2
 }
@@ -20,6 +22,12 @@ ensure_file_exists() {
 }
 
 ensure_app_layout() {
+    local built_identity=community
+    if [ -f "$APP_DIR/.codex-linux/identity" ]; then
+        read -r built_identity < "$APP_DIR/.codex-linux/identity"
+    fi
+    [ "$built_identity" = "$CODEX_IDENTITY" ] || \
+        error "App identity is $built_identity; rebuild with CODEX_IDENTITY=$CODEX_IDENTITY before packaging"
     [ -d "$APP_DIR" ] || error "Missing app directory: $APP_DIR. Run ./install.sh first."
     [ -x "$APP_DIR/start.sh" ] || error "Missing launcher: $APP_DIR/start.sh"
     [ -x "$APP_DIR/ChatGPT" ] || error "Missing official ChatGPT runtime: $APP_DIR/ChatGPT. Run ./install.sh first."
@@ -333,6 +341,25 @@ fs.writeFileSync(target, source.split(token).join(replacement));
 NODE
 }
 
+render_package_branding() {
+    local target="$1"
+    [ "$CODEX_IDENTITY" = upstream ] || return 0
+    local maintainer
+    maintainer="$(sed_escape_replacement "$(upstream_linux_control_field Maintainer)")"
+    sed -i \
+        -e "s/ChatGPT Community for Linux Maintainers/${maintainer:-OpenAI}/g" \
+        -e 's/ChatGPT Community for Linux/ChatGPT by OpenAI/g' \
+        -e 's/Custom codex-desktop distribution built from/ChatGPT repackaged from/g' \
+        "$target"
+    if package_with_updater_enabled; then
+        case "$(basename "$target")" in
+            control) printf 'Conflicts: codex-desktop\n' >> "$target" ;;
+            *.spec) sed -i '/^License:/i Conflicts:      codex-desktop' "$target" ;;
+            PKGBUILD) printf "\nconflicts=('codex-desktop')\n" >> "$target" ;;
+        esac
+    fi
+}
+
 render_desktop_entry() {
     local target="$1"
     local package_name
@@ -373,9 +400,19 @@ render_desktop_entry() {
             }
         ' "$DESKTOP_TEMPLATE" > "$rendered_target"
     if package_with_updater_enabled; then with_updater=1; fi
-    filter_desktop_actions "$with_updater" < "$rendered_target" > "$target"
+    if [ "$CODEX_IDENTITY" = upstream ]; then
+        render_upstream_desktop_entry native "$with_updater" < "$rendered_target" > "$target"
+    else
+        filter_desktop_actions "$with_updater" < "$rendered_target" > "$target"
+    fi
     rm -f "$rendered_target"
     chmod 0644 "$target"
+}
+
+render_upstream_desktop_entry() {
+    "$(package_node_binary)" "$REPO_DIR/packaging/linux/render-upstream-desktop.js" \
+        "$APP_DIR/.codex-linux/upstream-package/chatgpt.desktop" \
+        "$APP_DIR/.codex-linux/patch-report.json" "$1" "$2" "${PACKAGE_VERSION:-}"
 }
 
 filter_desktop_actions() {
@@ -494,15 +531,34 @@ codex_no_updater_cleanup_user_enablement_links() {
 }
 
 codex_no_updater_cleanup_update_manager_service() {
+    # A differently named installed distribution may own the shared updater.
+    # An actual enabled-to-disabled upgrade removes that package resource.
+    if [ -f /usr/share/codex-update-manager/identity ] &&
+       [ "$(cat /usr/share/codex-update-manager/identity)" != __CODEX_UPDATER_IDENTITY__ ]; then
+        return 0
+    fi
+    # Legacy Community packages predate the identity resource. A genuine
+    # enabled-to-disabled transition also removes the packaged updater binary.
+    if [ __CODEX_UPDATER_IDENTITY__ = upstream ] &&
+       [ ! -f /usr/share/codex-update-manager/identity ] &&
+       [ -x /usr/bin/codex-update-manager ]; then
+        return 0
+    fi
     codex_no_updater_foreach_user_manager codex_no_updater_cleanup_one_user_manager
     codex_no_updater_cleanup_user_enablement_links
 }
 SCRIPT
+    sed -i "s/__CODEX_UPDATER_IDENTITY__/$CODEX_IDENTITY/g" "$target"
     chmod 0644 "$target"
 }
 
 render_desktop_entry_doctor_helper() {
     local target="$1"
+    if [ "$CODEX_IDENTITY" = upstream ]; then
+        printf '%s\n' '#!/bin/sh' 'codex_desktop_repair_system_package_shadow_entries() { :; }' > "$target"
+        chmod 0644 "$target"
+        return
+    fi
 
     cp "$REPO_DIR/packaging/linux/codex-desktop-entry-doctor.sh" "$target"
     chmod 0644 "$target"
@@ -927,8 +983,14 @@ stage_common_package_files() {
     if package_with_updater_enabled; then
         cp "$UPDATER_BINARY_SOURCE" "$root/usr/bin/codex-update-manager"
         chmod 0755 "$root/usr/bin/codex-update-manager"
+        if [ "$CODEX_IDENTITY" = upstream ]; then
+            sed 's/ChatGPT Community/ChatGPT/g' "$UPDATER_SERVICE_SOURCE" > "$root/usr/lib/systemd/user/codex-update-manager.service"
+        else
         cp "$UPDATER_SERVICE_SOURCE" "$root/usr/lib/systemd/user/codex-update-manager.service"
+        fi
         chmod 0644 "$root/usr/lib/systemd/user/codex-update-manager.service"
+        mkdir -p "$root/usr/share/codex-update-manager"
+        printf '%s\n' "$CODEX_IDENTITY" > "$root/usr/share/codex-update-manager/identity"
         cp "$polkit_policy" "$root/usr/share/polkit-1/actions/com.github.ilysenko.codex-desktop-linux.update.policy"
         chmod 0644 "$root/usr/share/polkit-1/actions/com.github.ilysenko.codex-desktop-linux.update.policy"
     else
@@ -977,6 +1039,7 @@ stage_update_builder_bundle() {
         asar-patch.sh \
         build-info.js \
         build-info.sh \
+        build-identity.sh \
         candidate-install.sh \
         candidate-promotion.py \
         install-helpers.sh \

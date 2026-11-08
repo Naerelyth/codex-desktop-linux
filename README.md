@@ -2,6 +2,15 @@
 
 This personal branch builds enabled native helpers before app builds and rebuilds. AppImage uses a host Codex CLI from `CODEX_CLI_PATH` or `PATH`; profile isolation retains its required bundled CLI. With `shared-app-server-socket`, attachment requires the native Codex binary, rather than an npm/pnpm launcher; restart Desktop with that `CODEX_CLI_PATH`.
 
+For a personal build with upstream branding, set `CODEX_IDENTITY=upstream` for both app construction and packaging:
+
+```bash
+make CODEX_IDENTITY=upstream UPSTREAM_DEB=/home/alex/TMP/chatgpt_amd64.deb build-app
+make CODEX_IDENTITY=upstream appimage  # or deb, rpm, pacman
+```
+
+This selects the `chatgpt` package/command and official application identity. Desktop entries retain the upstream name, comment, generic name, categories and MIME types; enabled features may add their desktop actions, and AppImage uses `AppRun` for its executable. Both identity modes use the personal icon from commit `1f494234` and the same configured features, CLI policy and `PACKAGE_WITH_UPDATER` setting. The updater retains the selected identity when rebuilding. Updater-enabled native packages declare a conflict with the Community package because they share updater executables and services. Native packages install under `/opt/chatgpt` and replace an installed official `chatgpt` package. The default remains `CODEX_IDENTITY=community`; rebuild the app when switching modes. The option supports direct `install.sh` and deb/RPM/pacman/AppImage builders; Nix and Gentoo retain their existing Community identity.
+
 <p align="center">
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml"><img src="https://github.com/ilysenko/codex-desktop-linux/actions/workflows/upstream-build-app.yml/badge.svg" alt="Official Linux package build"></a>
@@ -265,7 +274,7 @@ state.
 | Reliable shell environment startup | Always | Owned by the verified upstream runtime; no core shell-startup patch is applied |
 | Reliable approved quit completion | Always | A required core patch consumes upstream quit approval in the unique `before-quit` owner so teardown reaches `will-quit` |
 | Optional Linux feature framework | Disabled | Configure with `make setup-native` |
-| Distinct desktop identity | Always | **ChatGPT Community**, personal icon, `codex-desktop` package identity |
+| Distinct desktop identity | Always | **ChatGPT Community**, personal icon, `codex-desktop` package identity (or upstream identity with `CODEX_IDENTITY=upstream`) |
 
 ### Optional Linux features
 

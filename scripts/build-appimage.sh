@@ -58,6 +58,7 @@ render_template() {
 
     sed \
         -e "s/__PACKAGE_NAME__/$package_name/g" \
+        -e "s/codex-desktop/$package_name/g" \
         -e "s/__PACKAGE_DISPLAY_NAME__/$display_name/g" \
         -e "s/__PACKAGE_COMMENT__/$comment/g" \
         -e "s/__VERSION__/$version/g" \
@@ -83,8 +84,13 @@ prepare_appdir() {
     render_template "$APPRUN_TEMPLATE" "$APPDIR/AppRun"
     chmod 0755 "$APPDIR/AppRun"
 
+    if [ "$CODEX_IDENTITY" = upstream ]; then
+        render_template "$DESKTOP_TEMPLATE" /dev/stdout |
+            render_upstream_desktop_entry appimage 0 > "$APPDIR/$PACKAGE_NAME.desktop"
+    else
     render_template "$DESKTOP_TEMPLATE" /dev/stdout |
         filter_desktop_actions 0 > "$APPDIR/$PACKAGE_NAME.desktop"
+    fi
     chmod 0644 "$APPDIR/$PACKAGE_NAME.desktop"
     cp "$APPDIR/$PACKAGE_NAME.desktop" "$APPDIR/usr/share/applications/$PACKAGE_NAME.desktop"
 

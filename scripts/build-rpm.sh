@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+. "$REPO_DIR/scripts/lib/package-common.sh"
 APP_DIR="${APP_DIR_OVERRIDE:-$REPO_DIR/codex-app}"
 DIST_DIR="${DIST_DIR_OVERRIDE:-$REPO_DIR/dist}"
 SPEC_TEMPLATE="$REPO_DIR/packaging/linux/codex-desktop.spec"
@@ -19,10 +20,6 @@ UPDATER_BINARY_SOURCE="${UPDATER_BINARY_SOURCE:-$REPO_DIR/target/release/codex-u
 UPDATER_SERVICE_SOURCE="${UPDATER_SERVICE_SOURCE:-$SERVICE_TEMPLATE}"
 PACKAGED_RUNTIME_SOURCE="${PACKAGED_RUNTIME_SOURCE:-$PACKAGED_RUNTIME_TEMPLATE}"
 UPDATE_BUILDER_ROOT_PLACEHOLDER="__UPDATE_BUILDER_ROOT__"
-
-# Keep the installed update-builder payload aligned with the other package formats.
-# shellcheck source=scripts/lib/package-common.sh
-. "$REPO_DIR/scripts/lib/package-common.sh"
 
 ICON_SOURCE="$(resolve_package_icon_source)"
 
@@ -142,6 +139,7 @@ SCRIPT
         "__LINUX_FEATURE_FILES__" \
         "$feature_files"
 
+    render_package_branding "$spec_file"
     local rpmbuild_dir="$build_root/rpmbuild"
     mkdir -p \
         "$rpmbuild_dir/RPMS" \

@@ -44,5 +44,9 @@ function renderDesktopActions(source, reportPath, withUpdater) {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-const [reportPath, updater] = process.argv.slice(2);
-process.stdout.write(renderDesktopActions(fs.readFileSync(0, "utf8"), reportPath, updater === "1"));
+if (require.main === module) {
+  const [reportPath, updater] = process.argv.slice(2);
+  process.stdout.write(renderDesktopActions(fs.readFileSync(0, "utf8"), reportPath, updater === "1"));
+}
+
+module.exports = { renderDesktopActions };

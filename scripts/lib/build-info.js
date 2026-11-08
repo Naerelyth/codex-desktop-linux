@@ -297,6 +297,7 @@ function buildInfo(options) {
     schemaVersion: 2,
     generatedAt: isoTimestamp(env),
     appIdentity: {
+      distribution: env.CODEX_IDENTITY || "community",
       id: options.appId,
       displayName: options.appDisplayName,
     },

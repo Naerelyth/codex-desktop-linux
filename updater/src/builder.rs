@@ -74,6 +74,7 @@ pub async fn build_update(
     install
         .arg(upstream_package)
         .env("CODEX_INSTALL_TRANSACTION_ACTIVE", "1")
+        .env("CODEX_IDENTITY", crate::identity::current().mode())
         .env("CODEX_INSTALL_DIR", &app)
         .env("CODEX_UPSTREAM_LINUX_REPOSITORY", &config.repository_url)
         .env(
@@ -99,6 +100,7 @@ pub async fn build_update(
     let mut package = Command::new(bundle.join(script));
     package
         .env("PACKAGE_VERSION", package_version())
+        .env("CODEX_IDENTITY", crate::identity::current().mode())
         .env("APP_DIR_OVERRIDE", &app)
         .env("DIST_DIR_OVERRIDE", &dist)
         .env("UPDATER_BINARY_SOURCE", updater_binary)

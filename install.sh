@@ -5,11 +5,12 @@ set -Eeuo pipefail
 # package. The unattended source of trust is the signed stable APT index.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/scripts/lib/build-identity.sh"
 CODEX_APP_ID="${CODEX_APP_ID:-codex-desktop}"
 CODEX_APP_DISPLAY_NAME="${CODEX_APP_DISPLAY_NAME:-ChatGPT Community}"
 INSTALL_ROOT="${CODEX_INSTALL_ROOT:-$SCRIPT_DIR}"
 DEFAULT_INSTALL_DIR_NAME="codex-app"
-if [ "$CODEX_APP_ID" != "codex-desktop" ]; then
+if [ "$CODEX_IDENTITY" != upstream ] && [ "$CODEX_APP_ID" != "codex-desktop" ]; then
     DEFAULT_INSTALL_DIR_NAME="$CODEX_APP_ID-app"
 fi
 INSTALL_DIR="${CODEX_INSTALL_DIR:-$INSTALL_ROOT/$DEFAULT_INSTALL_DIR_NAME}"
@@ -93,6 +94,7 @@ create_start_script() {
 
 stage_community_branding() {
     mkdir -p "$INSTALL_DIR/.codex-linux"
+    printf '%s\n' "$CODEX_IDENTITY" > "$INSTALL_DIR/.codex-linux/identity"
     if [ -f "$ICON_SOURCE" ]; then
         cp "$ICON_SOURCE" "$INSTALL_DIR/.codex-linux/$CODEX_APP_ID.png"
         cp "$ICON_SOURCE" "$INSTALL_DIR/resources/icon-chatgpt.png"

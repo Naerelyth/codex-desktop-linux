@@ -187,6 +187,7 @@ main() {
 		write_no_updater_pacman_install_hooks "$build_root/${PACKAGE_NAME}.install"
 	fi
 
+	render_package_branding "$build_root/PKGBUILD"
 	if [ "${PACMAN_STAGE_ONLY:-0}" = "1" ]; then
 		mkdir -p "$DIST_DIR/pacman-stage"
 		cp -a "$staging_root/." "$DIST_DIR/pacman-stage/"

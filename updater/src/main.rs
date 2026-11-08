@@ -5,6 +5,7 @@ mod builder;
 mod cache_cleanup;
 mod cli;
 mod config;
+mod identity;
 mod install;
 mod install_rollback;
 mod install_transaction;
@@ -24,5 +25,6 @@ use clap::Parser;
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = cli::Cli::parse();
+    identity::initialize()?;
     app::run(cli).await
 }
