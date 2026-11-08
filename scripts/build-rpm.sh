@@ -154,6 +154,8 @@ SCRIPT
     info "Building $PACKAGE_NAME-${rpm_ver}-${rpm_rel}.${arch}.rpm"
     local -a rpmbuild_args=(
         -bb
+        --define "_topdir $rpmbuild_dir" \
+        --define "_tmppath $build_root" \
         --define "_rpmdir $rpmbuild_dir/RPMS" \
         --define "_srcrpmdir $rpmbuild_dir/SRPMS" \
         --define "_builddir $rpmbuild_dir/BUILD" \
